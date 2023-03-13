@@ -6,6 +6,7 @@ mod twitter;
 mod chatgpt;
 mod scraper;
 
+
 #[tokio::main]
 async fn main() {
     dotenv().ok();
@@ -44,24 +45,30 @@ async fn main() {
 
     if url != previous_url {
         scraper.save_url(&url);
-        let text = scraper.scrape_text(&url).await;
-        println!("{}",text);
+        let blog = scraper.scrape_text(&url).await;
+        println!("{}",blog);
 
-        // let pre_prompt = "
-        // Read the idol's blog below and tweet your comment to it casually as one of her fans within 50 words in Japanese\n";
+       
 
         let pre_prompt = "以下のアイドルのブログを読んだ感想を、カジュアルかつキモくオタクのように、日本語40字以内で短めにツイートしなさい。\n";
-        let res = chatgpt.get_response(&(pre_prompt.to_owned() + &text)).await.unwrap();
+        let res = chatgpt.get_response(&(pre_prompt.to_owned() + &blog)).await.unwrap();
 
-        println!("{}", res.replace("私", "ポカ"));
+ 
         let text = res.replace("私", "ポカ");
-        // let mut params = HashMap::new();
-        // params.insert("text", "hello");
+    
 
-        twitter.post(format!("{}{}{}",text, base, url)).await.unwrap();
-        println!("{:?}", res);
+        twitter.post(format!("{} {}{}",text, base, url)).await.unwrap();
+        println!("{}", text);
         
-        // println!("{}",text);
+        
+        let pre_prompt_eng = "
+        Read the idol's blog below and tweet your comment to it casually as one of her fans within 30 words in English briefly\n";
+
+        let res = chatgpt.get_response(&(pre_prompt_eng.to_owned() + &blog)).await.unwrap();
+
+        twitter.post(format!("{} {}{}",res, base, url)).await.unwrap();
+        println!("{}", res);
+
     } else {
         println!("Nothing to scrape");
     }
