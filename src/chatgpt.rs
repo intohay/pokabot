@@ -1,7 +1,7 @@
 use serde_json::json;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-
+use tokio::time;
 pub struct ChatGPT {
     api_key: String
 }
@@ -26,13 +26,12 @@ impl ChatGPT {
     }
     
 
-    pub async fn get_response(&self, prompt: &str, max_length: usize) -> reqwest::Result<String> {
+    pub async fn get_response(&self, prompt: String, max_length: usize) -> reqwest::Result<String> {
         let client = reqwest::Client::new();
         let post_body = json!({
             "model" : "gpt-3.5-turbo",
             "messages" : [{"role": "user", "content": prompt}],
             "temperature": 0.7,
-            "n": 5
             });
 
         let mut result = String::new();
@@ -49,12 +48,14 @@ impl ChatGPT {
             .text()
             .await?;
             
-
+            println!("{}",res);
             let deserialized: Response = serde_json::from_str(&res).unwrap();
             let response: Vec<_> = deserialized.choices.iter().map(|x| &x.message.content).collect();
+
             
             
             for r in response{
+                println!("{}: {}", r.chars().count(), r);
                 if r.chars().count() <= max_length {
                     result = r.to_string();
                     found = true;
@@ -65,6 +66,8 @@ impl ChatGPT {
             if found {
                 break;
             }
+
+            time::sleep(time::Duration::from_millis(1000)).await;
 
           
             
