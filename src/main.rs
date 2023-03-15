@@ -51,22 +51,19 @@ async fn main() {
        
 
         let pre_prompt = "以下のアイドルのブログを読んだ感想を、カジュアルかつキモくオタクのように、日本語40字以内で短めにツイートしなさい。\n";
-        let res = chatgpt.get_response(&(pre_prompt.to_owned() + &blog)).await.unwrap();
+        let res = chatgpt.get_response(&(pre_prompt.to_owned() + &blog), 140 - 22).await.unwrap();
 
- 
-        let text = res.replace("私", "ポカ");
     
-
-        twitter.post(format!("{} {}{}",text, base, url)).await.unwrap();
-        println!("{}", text);
+        twitter.post(format!("{} {}{}",res, base, url)).await.unwrap();
+        println!("{}", res);
         
         
         let pre_prompt_eng = "
         Read the idol's blog below and tweet your comment to it casually as one of her fans within 30 words in English briefly\n";
 
-        let res = chatgpt.get_response(&(pre_prompt_eng.to_owned() + &blog)).await.unwrap();
+        let res_eng = chatgpt.get_response(&(pre_prompt_eng.to_owned() + &blog), 280 - 22).await.unwrap();
 
-        twitter.post(format!("{} {}{}",res, base, url)).await.unwrap();
+        twitter.post(format!("{} {}{}",res_eng, base, url)).await.unwrap();
         println!("{}", res);
 
     } else {
