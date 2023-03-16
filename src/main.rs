@@ -59,7 +59,7 @@ async fn tweet_jp_post(post_url: &str, twitter: &Twitter, chatgpt: &ChatGPT, scr
 
     let images = scraper.scrape_images(post_url).await;
 
-    let prompt = "---\n上記のアイドルのブログを読んだ感想を、カジュアルかつキモくオタクのように、日本語50字以内で短めにツイートしなさい。";
+    let prompt = "---\n上記のアイドルのブログを読んだ感想を、カジュアルかつ彼女のファンのように、日本語50字以内で短めにツイートしなさい。";
 
     let res = chatgpt.get_response(format!("{}\n {}", blog, prompt), 140 - 23).await.unwrap();
     println!("{}", res);
