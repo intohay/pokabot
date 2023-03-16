@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::scraper::Scraper;
 use crate::twitter::Twitter;
 use crate::chatgpt::ChatGPT;
-
+use chrono::Local;
 mod twitter;
 mod chatgpt;
 mod scraper;
@@ -19,7 +19,7 @@ async fn tweet_latest_post(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scrap
         tweet_both(&url, &twitter, &chatgpt, &scraper).await;
         scraper.save_url(&url);
     } else {
-        println!("Nothing to scrape");
+        println!("[{}] Nothing to scrape", Local::now().format("%Y-%m-%d %Hh%Mm%Ss %Z"));
     }
     
     
