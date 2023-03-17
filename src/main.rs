@@ -5,17 +5,32 @@ use crate::scraper::Scraper;
 use crate::twitter::Twitter;
 use crate::chatgpt::ChatGPT;
 use chrono::Local;
+use url::Url;
 mod twitter;
 mod chatgpt;
 mod scraper;
 
 
 
+fn extract_path(url_or_path: &str) -> String {
+    // 相対パスの場合、適当なドメインを追加して完全なURLを作成
+    let url = if !url_or_path.starts_with("http://") && !url_or_path.starts_with("https://") {
+        format!("https://example.com{}", url_or_path)
+    } else {
+        url_or_path.to_string()
+    };
+
+    let parsed_url = Url::parse(&url).unwrap();
+
+    // URLからパス部分を取得して返す
+    parsed_url.path().to_string()
+}
+
 async fn tweet_latest_post(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper){
     let url = scraper.scrape_latest_url().await;
     let previous_url = scraper.load_url();
 
-    if url.contains(&previous_url) || previous_url.contains(&url) {
+    if extract_path(&url) != extract_path(&previous_url) {
         tweet_both(&url, &twitter, &chatgpt, &scraper).await;
         scraper.save_url(&url);
     } else {
