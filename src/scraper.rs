@@ -88,15 +88,34 @@ impl Scraper {
 
     
 
+    pub async fn scrape_name(&self, url: &str) -> String {
+        let post_url = if url.contains("https") {
+            String::from(url)
+        } else {
+            format!("{}{}",self.base, url)
+        };
+
+
+        let html = reqwest::get(post_url)
+        .await.unwrap().text().await.unwrap();
+        let doc = scraper::Html::parse_document(&html);
+        let sel = Selector::parse("div.c-blog-article__name > a").unwrap();
+        
+        let a_tag = doc.select(&sel).next().unwrap();
+        let name = a_tag.text().collect::<String>();
+
+        return name;
+
+    }
 
     pub async fn scrape_text(&self, url: &str) -> String {
 
-        let post_url: String;
+        let post_url = 
         if url.contains("https") {
-            post_url = String::from(url);
+            String::from(url)
         } else {
-            post_url = format!("{}{}",self.base, url);
-        }
+            format!("{}{}",self.base, url)
+        };
 
         let html = reqwest::get(post_url)
         .await.unwrap().text().await.unwrap();

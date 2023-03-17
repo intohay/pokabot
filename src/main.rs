@@ -53,7 +53,13 @@ async fn tweet_eng_post(post_url: &str, twitter: &Twitter, chatgpt: &ChatGPT, sc
 
     let images = scraper.scrape_images(post_url).await;
 
-    let prompt_eng = "---\nRead the idol's blog above and tweet your comment to it casually as one of her fans within 150 characters in English briefly.";
+    let name = scraper.scrape_name(post_url).await;
+
+    let prompt_eng = if name == "ポカ" {
+        "---\n Pretend to be the writer of the blog above and make a promotional tweet about it within 150 characters in English briefly."
+    } else {
+         "---\nRead the idol's blog above and tweet your comment to it casually as one of her fans within 150 characters in English briefly."
+    };
 
     let res_eng = chatgpt.get_response(format!("{}\n {}", blog, prompt_eng), 280 - 23).await.unwrap();
     println!("{}", res_eng);
@@ -73,8 +79,13 @@ async fn tweet_jp_post(post_url: &str, twitter: &Twitter, chatgpt: &ChatGPT, scr
     println!("{}",blog);
 
     let images = scraper.scrape_images(post_url).await;
+    let name = scraper.scrape_name(post_url).await;
 
-    let prompt = "---\n上記のアイドルのブログを読んだ感想を、彼女のファンになったつもりで、カジュアルな口調で、日本語50字以内で短めにツイートしなさい。";
+    let prompt = if name == "ポカ" {
+        "---\n上記のブログを書いた本人になりきって、日本語50字以内で短めに、ブログの宣伝ツイートをしてください。"
+    } else {
+         "---\n上記のアイドルのブログを読んだ感想を、彼女のファンになったつもりで、カジュアルな口調で、日本語50字以内で短めにツイートしなさい。"
+    };
 
     let res = chatgpt.get_response(format!("{}\n {}", blog, prompt), 140 - 23).await.unwrap();
     println!("{}", res);
@@ -84,6 +95,7 @@ async fn tweet_jp_post(post_url: &str, twitter: &Twitter, chatgpt: &ChatGPT, scr
     } else {
         twitter.post(format!("{} \n{}{}",res, scraper.get_base(), post_url), &images).await.unwrap();
     }
+   
     
 }
 
