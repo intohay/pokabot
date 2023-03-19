@@ -29,6 +29,17 @@ struct ResponseToken {
     expires_in: i64,
     refresh_token: String
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+struct TweetResponse {
+    data : TweetInfo
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct TweetInfo {
+    id : String,
+    text: String
+}
 // レスポンスで必要な部分だけ記述
 // これを戻り値にせずserde_json::Valueで全部取得してもよい
 
@@ -149,6 +160,8 @@ impl Twitter {
 
         let mut post_data = json!({ "text" : text });
         
+
+       
         if images.len() != 0 {
             post_data = 
             json!({ 
@@ -162,7 +175,7 @@ impl Twitter {
 
      
         let res = client.post("https://api.twitter.com/2/tweets")
-            .bearer_auth(bearer_token)
+            .bearer_auth(&bearer_token)
             .header("Content-Type","application/json")
             .json(&post_data)
             .send()
@@ -170,6 +183,38 @@ impl Twitter {
             .unwrap().text().await.unwrap();
 
         println!("{}",res);
+
+        let mut tweet : TweetResponse = serde_json::from_str(&res).unwrap();
+
+        let rest = media_ids.iter().skip(1).cloned().collect::<Vec<_>>();
+
+        for chunk in rest.chunks(4) {
+
+            let ids_str = chunk.join(",");
+
+            post_data = 
+                json!({ 
+                    "media" : {
+                        "media_ids" : ids_str
+                    },
+                    "reply" : {
+                        "in_reply_to_tweet_id": &tweet.data.id
+                    }
+                });
+
+            let res = client.post("https://api.twitter.com/2/tweets")
+            .bearer_auth(&bearer_token)
+            .header("Content-Type","application/json")
+            .json(&post_data)
+            .send()
+            .await
+            .unwrap().text().await.unwrap();
+
+            println!("{}",res);
+
+            tweet = serde_json::from_str(&res).unwrap();
+        }
+
 
         Ok(())
 
