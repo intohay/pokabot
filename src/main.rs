@@ -9,7 +9,7 @@ use url::Url;
 mod twitter;
 mod chatgpt;
 mod scraper;
-
+pub mod helper;
 
 
 fn extract_path(url_or_path: &str) -> String {

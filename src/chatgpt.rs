@@ -2,7 +2,8 @@ use serde_json::json;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use tokio::time;
-use super::helper::is_within_twitter_limit;
+
+use crate::helper::is_within_twitter_limit;
 
 pub struct ChatGPT {
     api_key: String
