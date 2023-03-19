@@ -146,7 +146,7 @@ impl Twitter {
 
     
 
-    pub async fn post(&self, text: String, images: &Vec<Bytes>) -> reqwest::Result<()> {
+    pub async fn post(&self, text: &str, images: &Vec<Bytes>) -> reqwest::Result<()> {
 
         let mut media_ids: Vec<String> = vec![];
         for image in images{

@@ -81,18 +81,25 @@ async fn tweet_eng_post(post_url: &str, twitter: &Twitter, chatgpt: &ChatGPT, sc
     let name = scraper.scrape_name(post_url).await;
 
     let prompt_eng = if name == "ポカ" {
-        "---\n Pretend to be the writer of the blog above and make a promotional tweet about it within 150 characters in English briefly."
+        "---\n Act as the writer of the blog above and make a promotional tweet about it within 150 characters in English briefly."
     } else {
          "---\nRead the idol's blog above and tweet your comment to it casually as one of her fans within 150 characters in English briefly."
     };
 
-    let res_eng = chatgpt.get_response(format!("{}\n {}", blog, prompt_eng)).await.unwrap();
-    println!("{}", res_eng);
 
-    if post_url.contains("https") {
-        twitter.post(format!("{} \n{}",res_eng, post_url), &images).await.unwrap();
-    } else {
-        twitter.post(format!("{} \n{}{}",res_eng, scraper.get_base(), post_url), &images).await.unwrap();
+    loop {
+        let body = chatgpt.get_response(format!("{}\n {}", blog, prompt_eng)).await.unwrap();
+
+        let text = if post_url.contains("https") {
+            format!("{} \n{}", body, post_url)
+        } else {
+            format!("{} \n{}{}",body, scraper.get_base(), post_url)
+        };
+
+        if helper::is_within_twitter_limit(&text) {
+             twitter.post(&text, &images).await.unwrap();
+             break;
+        }
     }
     
 }
@@ -112,13 +119,19 @@ async fn tweet_jp_post(post_url: &str, twitter: &Twitter, chatgpt: &ChatGPT, scr
          "---\n上記のアイドルのブログを読んだ感想を、彼女のファンになったつもりで、カジュアルな口調で、日本語50字以内で短めにツイートしなさい。"
     };
 
-    let res = chatgpt.get_response(format!("{}\n {}", blog, prompt)).await.unwrap();
-    println!("{}", res);
-    
-    if post_url.contains("https") {
-        twitter.post(format!("{} \n{}",res, post_url), &images).await.unwrap();
-    } else {
-        twitter.post(format!("{} \n{}{}",res, scraper.get_base(), post_url), &images).await.unwrap();
+    loop {
+        let body = chatgpt.get_response(format!("{}\n {}", blog, prompt)).await.unwrap();
+
+        let text = if post_url.contains("https") {
+            format!("{} \n{}", body, post_url)
+        } else {
+            format!("{} \n{}{}",body, scraper.get_base(), post_url)
+        };
+
+        if helper::is_within_twitter_limit(&text) {
+             twitter.post(&text, &images).await.unwrap();
+             break;
+        }
     }
    
     
