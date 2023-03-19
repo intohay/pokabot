@@ -40,6 +40,25 @@ async fn tweet_latest_post(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scrap
     
 }
 
+async fn tweet_until_latest_post(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper){
+
+    let url = scraper.scrape_latest_url().await;
+    let previous_url = scraper.load_url();
+
+    let latest_post_id = helper::extract_post_id(&url).unwrap();
+    let previous_post_id = helper::extract_post_id(&previous_url).unwrap();
+
+    for id in previous_post_id..=latest_post_id{
+        let target_url = format!("https://www.hinatazaka46.com/s/official/diary/detail/{}?ima=0000&cd=member", id);
+        if scraper.page_exists(&target_url).await {
+            tweet_both(&target_url, &twitter, &chatgpt, &scraper).await;
+            scraper.save_url(&target_url);
+        }
+    }
+    
+
+}
+
 async fn tweet_both(post_url: &str, twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper){
     tweet_eng_post(post_url, &twitter, &chatgpt, &scraper).await;
     tweet_jp_post(post_url, &twitter, &chatgpt, &scraper).await;
@@ -123,6 +142,6 @@ async fn main() {
     let url = "https://www.hinatazaka46.com/s/official/diary/member?ima=0000";
     let scraper = scraper::Scraper::new(base, url);
 
-    tweet_latest_post(&twitter, &chatgpt, &scraper).await;
+    tweet_until_latest_post(&twitter, &chatgpt, &scraper).await;
 
 }

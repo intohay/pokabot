@@ -1,3 +1,6 @@
 /target
 /pokabot
 .env
+*.txt
+*.jpg
+*.json

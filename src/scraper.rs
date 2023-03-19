@@ -130,6 +130,23 @@ impl Scraper {
         return text;
     }
 
+    pub async fn page_exists(&self, url: &str) -> bool {
+        let post_url = 
+        if url.contains("https") {
+            String::from(url)
+        } else {
+            format!("{}{}",self.base, url)
+        };
+
+        let html = reqwest::get(post_url)
+        .await.unwrap().text().await.unwrap();
+        
+        let doc = scraper::Html::parse_document(&html);
+        let sel = Selector::parse("div.c-blog-article__text").unwrap();
+
+        return doc.select(&sel).next().is_some();
+    }
+
     pub fn save_url(&self, url: &str) {
         {
             let fp = File::create(Self::FILENAME).unwrap();
