@@ -190,12 +190,10 @@ impl Twitter {
 
         for chunk in rest.chunks(4) {
 
-            let ids_str = chunk.join(",");
-
             post_data = 
                 json!({ 
                     "media" : {
-                        "media_ids" : ids_str
+                        "media_ids" : chunk
                     },
                     "reply" : {
                         "in_reply_to_tweet_id": &tweet.data.id
