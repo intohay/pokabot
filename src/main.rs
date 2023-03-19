@@ -54,7 +54,7 @@ async fn tweet_until_latest_post(twitter: &Twitter, chatgpt: &ChatGPT, scraper: 
     }
 
 
-    for id in (previous_post_id+1)..=latest_post_id{
+    for id in (previous_post_id+1)..=(latest_post_id+5){
         let target_url = format!("https://www.hinatazaka46.com/s/official/diary/detail/{}?ima=0000&cd=member", id);
         if scraper.page_exists(&target_url).await {
             tweet_both(&target_url, &twitter, &chatgpt, &scraper).await;
