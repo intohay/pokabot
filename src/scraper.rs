@@ -5,6 +5,7 @@ use regex::Regex;
 use base64::encode;
 use tokio::time;
 use bytes::Bytes;
+use url::Url;
 
 pub struct Scraper {
     base: String,
@@ -145,6 +146,26 @@ impl Scraper {
         let sel = Selector::parse("div.c-blog-article__text").unwrap();
 
         return doc.select(&sel).next().is_some();
+    }
+
+    pub fn extract_post_id(&self, url: &str) -> Option<usize> {
+        let post_url = 
+        if url.contains("https") {
+            String::from(url)
+        } else {
+            format!("{}{}",self.base, url)
+        };
+
+        let parsed_url = Url::parse(&post_url).ok()?;
+        let path_segments: Vec<_> = parsed_url.path_segments()?.collect();
+
+        if let Some(detail_index) = path_segments.iter().position(|&s| s == "detail") {
+            if let Ok(id) = path_segments[detail_index + 1].parse() {
+                return Some(id);
+            }
+        }
+
+        None
     }
 
     pub fn save_url(&self, url: &str) {

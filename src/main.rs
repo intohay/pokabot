@@ -45,14 +45,15 @@ async fn tweet_until_latest_post(twitter: &Twitter, chatgpt: &ChatGPT, scraper: 
     let url = scraper.scrape_latest_url().await;
     let previous_url = scraper.load_url();
 
-    let latest_post_id = helper::extract_post_id(&url).unwrap();
-    let previous_post_id = helper::extract_post_id(&previous_url).unwrap();
+
+    let latest_post_id = scraper.extract_post_id(&url).unwrap();
+    let previous_post_id = scraper.extract_post_id(&previous_url).unwrap();
 
     if latest_post_id == previous_post_id {
         return;
     }
 
-    
+
     for id in previous_post_id..=latest_post_id{
         let target_url = format!("https://www.hinatazaka46.com/s/official/diary/detail/{}?ima=0000&cd=member", id);
         if scraper.page_exists(&target_url).await {
