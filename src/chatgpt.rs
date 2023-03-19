@@ -2,6 +2,8 @@ use serde_json::json;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use tokio::time;
+use super::helper::is_within_twitter_limit;
+
 pub struct ChatGPT {
     api_key: String
 }
@@ -26,7 +28,7 @@ impl ChatGPT {
     }
     
 
-    pub async fn get_response(&self, prompt: String, max_length: usize) -> reqwest::Result<String> {
+    pub async fn get_response(&self, prompt: String) -> reqwest::Result<String> {
         let client = reqwest::Client::new();
         let post_body = json!({
             "model" : "gpt-3.5-turbo",
@@ -56,7 +58,7 @@ impl ChatGPT {
             
             for r in response{
                 println!("{}: {}", r.chars().count(), r);
-                if r.chars().count() <= max_length {
+                if is_within_twitter_limit(r) {
                     result = r.to_string();
                     found = true;
                     break;

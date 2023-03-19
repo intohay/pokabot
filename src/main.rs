@@ -61,7 +61,7 @@ async fn tweet_eng_post(post_url: &str, twitter: &Twitter, chatgpt: &ChatGPT, sc
          "---\nRead the idol's blog above and tweet your comment to it casually as one of her fans within 150 characters in English briefly."
     };
 
-    let res_eng = chatgpt.get_response(format!("{}\n {}", blog, prompt_eng), 280 - 23).await.unwrap();
+    let res_eng = chatgpt.get_response(format!("{}\n {}", blog, prompt_eng)).await.unwrap();
     println!("{}", res_eng);
 
     if post_url.contains("https") {
@@ -87,7 +87,7 @@ async fn tweet_jp_post(post_url: &str, twitter: &Twitter, chatgpt: &ChatGPT, scr
          "---\n上記のアイドルのブログを読んだ感想を、彼女のファンになったつもりで、カジュアルな口調で、日本語50字以内で短めにツイートしなさい。"
     };
 
-    let res = chatgpt.get_response(format!("{}\n {}", blog, prompt), 140 - 23).await.unwrap();
+    let res = chatgpt.get_response(format!("{}\n {}", blog, prompt)).await.unwrap();
     println!("{}", res);
     
     if post_url.contains("https") {
