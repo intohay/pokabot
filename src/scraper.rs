@@ -71,12 +71,16 @@ impl Scraper {
 
         for (i, element) in doc.select(&sel).enumerate() {
             let src = element.value().attr("src").unwrap();
+            
+            if !src.contains("https") {
+                continue;
+            }
+            
             println!("{}", src);
-            // let filename = format!("H{}-{:>02}.jpg",post_id, i+1);
+           
             let bytes = reqwest::get(src).await.unwrap()
                                     .bytes().await.unwrap();
-            // let base64_str = encode(&bytes);
-
+           
             images.push(bytes);
 
             time::sleep(time::Duration::from_millis(1000)).await;
