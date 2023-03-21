@@ -28,8 +28,8 @@ fn extract_path(url_or_path: &str) -> String {
 }
 
 async fn tweet_news_in_both_lang(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper){
-    let jp_prompt = "以下は、日向坂46というアイドルグループに関するニュースです。ファンになったつもりで、ニュースの内容を要約し、カジュアルな日本語60字以内で短めにツイートしなさい。";
-    let eng_prompt = "Below is news on Hinatazaka46, Japanese idol group. Tweet summary of the news casually within 150 words in English.";
+    let jp_prompt = "以下は、日向坂46というアイドルグループに関するニュースです。ファンになったつもりで、ニュースの内容を要約し、カジュアルな日本語40字以内で短めにツイートしなさい。";
+    let eng_prompt = "Below is news on Hinatazaka46, Japanese idol group. Tweet summary of the news casually within 150 characters in English.";
 
     let news_list = scraper.scrape_until_latest_news().await;
 
