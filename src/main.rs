@@ -177,7 +177,7 @@ async fn main() {
 
     let base = "https://www.hinatazaka46.com";
     let blog_url = "https://www.hinatazaka46.com/s/official/diary/member?ima=0000";
-    let news_url = "https://www.hinatazaka46.com/s/official/news/list";
+    let news_url = "https://www.hinatazaka46.com/s/official/?ima=0000";
     let scraper = scraper::Scraper::new(base, blog_url, news_url);
 
     tweet_until_latest_post(&twitter, &chatgpt, &scraper).await;
