@@ -279,7 +279,7 @@ impl Twitter {
 
 
         let res = client.get(endpoint)
-            .bearer_auth("AAAAAAAAAAAAAAAAAAAAAPyjmAEAAAAA7Xe%2BTE0Ep%2FDgM4CN0kOk%2F%2BSYu5A%3D0UqBlGrtq5IHADx4jkvj0KEYE8oZkgzvSgHCSI7ea5eftLeGPS")
+            .bearer_auth("")
             // .headers(headers)
             .send()
             .await
