@@ -159,20 +159,30 @@ impl Scraper {
 
         let mut news_list : Vec<News> = vec![];
         
-        for element in doc.select(&sel) {
-            let href = element.value().attr("href").unwrap();
-            if previous_url == href {
-                break;
-            }
+        let elements: Vec<_> = doc.select(&sel).collect();
+        let mut is_new = false;
 
+        if previous_url == "" {
+            let href = elements[0].value().attr("href").unwrap();
             news_list.push(self.scrape_news(href).await);
             self.save_url(href, "last_news.txt");
-            
-            // last_news.txtが空だった場合、一個目でやめる
-            if previous_url == "" {
-                break;
-            }
-        } 
+
+        } else {
+            for element in elements.iter().rev() {
+                let href = element.value().attr("href").unwrap();
+                if is_new {
+                    news_list.push(self.scrape_news(href).await);
+                    self.save_url(href, "last_news.txt");
+                } else if previous_url != href {
+                    continue;
+                } else {
+                    is_new = true;
+                    continue;
+                }
+
+            } 
+        }
+        
 
         return news_list;
 

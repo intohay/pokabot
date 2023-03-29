@@ -14,6 +14,7 @@ use chrono::{DateTime, Local};
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 use bytes::Bytes;
+use tokio::time;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Token {
@@ -151,6 +152,7 @@ impl Twitter {
         let mut media_ids: Vec<String> = vec![];
         for image in images{
             media_ids.push(self.upload_image(image).await);
+            time::sleep(time::Duration::from_secs(1)).await;
         }
 
     
@@ -211,6 +213,7 @@ impl Twitter {
             println!("{}",res);
 
             tweet = serde_json::from_str(&res).unwrap();
+            time::sleep(time::Duration::from_secs(2)).await;
         }
 
 
@@ -239,9 +242,7 @@ impl Twitter {
         // let mut buffer:Vec<u8> = Vec::new();
         // file.read_to_end(&mut buffer).unwrap();
 
-        let part = multipart::Part::bytes(image.to_vec())
-        .file_name("image.jpg")
-        .mime_str("image/jpeg").unwrap();
+        let part = multipart::Part::bytes(image.to_vec());
 
         // let part = multipart::Part::bytes(buffer).file_name("image.png");
 
@@ -292,7 +293,7 @@ impl Twitter {
     #[allow(dead_code)]
     pub async fn get_access_token(&self) -> reqwest::Result<String> {
        
-        let file = File::open("token.json").unwrap();
+        let file = File::open("twitter_access_token.json").unwrap();
         let reader = BufReader::new(file);
 
         let deserialized_token: Token = serde_json::from_reader(reader).unwrap();
@@ -339,7 +340,7 @@ impl Twitter {
                 let mut fout = std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
-                .open("token.json")
+                .open("twitter_access_token.json")
                 .unwrap();
                 fout.write_all(serialized_res.as_bytes());
             }
