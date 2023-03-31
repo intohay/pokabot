@@ -2,14 +2,12 @@ use base64;
 use chrono::Utc;
 use reqwest;
 use reqwest::multipart;
-use reqwest::header::{HeaderMap, AUTHORIZATION, CONTENT_TYPE};
+use reqwest::header::{HeaderMap, AUTHORIZATION};
 use percent_encoding::{utf8_percent_encode, AsciiSet};
-use serde::de::value;
 use std::collections::HashMap;
 use serde_json::Value;
 use std::fs::File;
-use std::io::Read;
-use std::io::{BufReader,Write, BufWriter};
+use std::io::{BufReader,Write};
 use chrono::{DateTime, Local};
 use serde::{Serialize, Deserialize};
 use serde_json::json;
@@ -146,23 +144,37 @@ impl Twitter {
     }
 
     
+    
+    async fn post_tweet(&self, post_data: &Value) -> anyhow::Result<TweetResponse> {
+        let client = reqwest::Client::new();
+        let bearer_token = self.get_access_token().await?;
 
-    pub async fn post(&self, text: &str, images: &Vec<Bytes>) -> reqwest::Result<()> {
+        let res = client.post("https://api.twitter.com/2/tweets")
+            .bearer_auth(&bearer_token)
+            .header("Content-Type","application/json")
+            .json(post_data)
+            .send()
+            .await?.text().await?;
+
+        let tweet : TweetResponse = serde_json::from_str(&res)?;
+        
+        return Ok(tweet);
+
+
+    }
+
+    pub async fn post_thread(&self, text: &str, images: &Vec<Bytes>) -> anyhow::Result<()> {
 
         let mut media_ids: Vec<String> = vec![];
         for image in images{
-            media_ids.push(self.upload_image(image).await);
+            let media_id = self.upload_image(image).await?;
+            media_ids.push(media_id);
             time::sleep(time::Duration::from_secs(1)).await;
         }
 
     
-        
-        let client = reqwest::Client::new();
-        let bearer_token = self.get_access_token().await.unwrap();
-
         let mut post_data = json!({ "text" : text });
-        
-
+    
        
         if images.len() != 0 {
             post_data = 
@@ -175,18 +187,21 @@ impl Twitter {
         }
         
 
-     
-        let res = client.post("https://api.twitter.com/2/tweets")
-            .bearer_auth(&bearer_token)
-            .header("Content-Type","application/json")
-            .json(&post_data)
-            .send()
-            .await
-            .unwrap().text().await.unwrap();
+        let mut tweet : TweetResponse;
 
-        println!("{}",res);
-
-        let mut tweet : TweetResponse = serde_json::from_str(&res).unwrap();
+        loop {
+            match self.post_tweet(&post_data).await {
+                Ok(v) => {
+                    tweet = v;
+                    break;
+                },
+                Err(error) => {
+                    eprintln!("{:?}",error);
+                    time::sleep(time::Duration::from_secs(10)).await;
+                }
+            }
+        }
+        
 
         let rest = media_ids.iter().skip(1).cloned().collect::<Vec<_>>();
 
@@ -202,17 +217,19 @@ impl Twitter {
                     }
                 });
 
-            let res = client.post("https://api.twitter.com/2/tweets")
-            .bearer_auth(&bearer_token)
-            .header("Content-Type","application/json")
-            .json(&post_data)
-            .send()
-            .await
-            .unwrap().text().await.unwrap();
-
-            println!("{}",res);
-
-            tweet = serde_json::from_str(&res).unwrap();
+            loop {
+                match self.post_tweet(&post_data).await {
+                    Ok(v) => {
+                        tweet = v;
+                        break;
+                    },
+                    Err(error) => {
+                        eprintln!("{:?}", error);
+                        time::sleep(time::Duration::from_secs(10)).await;
+                    }
+                }
+            }
+            
             time::sleep(time::Duration::from_secs(2)).await;
         }
 
@@ -223,7 +240,7 @@ impl Twitter {
     }
 
     // image : base64 encode
-    async fn upload_image(&self, image: &Bytes) -> String {
+    async fn upload_image(&self, image: &Bytes) -> anyhow::Result<String> {
         let client = reqwest::Client::new();
        
         // let bearer_token = self.get_access_token().await.unwrap();
@@ -255,8 +272,7 @@ impl Twitter {
             .headers(headers)
             .multipart(form)
             .send()
-            .await
-            .unwrap().text().await.unwrap();
+            .await?.text().await?;
 
         
             
@@ -264,32 +280,31 @@ impl Twitter {
 
         println!("{}", res);
         
-        let image: Image = serde_json::from_str(&res).unwrap();
+        let image: Image = serde_json::from_str(&res)?;
 
-        return image.media_id_string;
+        return Ok(image.media_id_string);
     }
 
-    pub async fn get_user_id(&self, screen_name: &str) -> String {
-        let client = reqwest::Client::new();
-        let bearer_token = self.get_access_token().await.unwrap();
-        let endpoint = format!("https://api.twitter.com/1.1/users/show.json?screen_name={}",screen_name);
-        let header_auth = self.get_request_header("GET", &endpoint);
+    // async fn get_user_id(&self, screen_name: &str) -> String {
+    //     let client = reqwest::Client::new();
+    //     let endpoint = format!("https://api.twitter.com/1.1/users/show.json?screen_name={}",screen_name);
+    //     let header_auth = self.get_request_header("GET", &endpoint);
 
-        let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, header_auth.parse().unwrap());
+    //     let mut headers = HeaderMap::new();
+    //     headers.insert(AUTHORIZATION, header_auth.parse().unwrap());
 
 
-        let res = client.get(endpoint)
-            .bearer_auth("")
-            // .headers(headers)
-            .send()
-            .await
-            .unwrap().text().await.unwrap();
+    //     let res = client.get(endpoint)
+    //         .bearer_auth("")
+    //         // .headers(headers)
+    //         .send()
+    //         .await
+    //         .unwrap().text().await.unwrap();
 
-        println!("{}",res);
-        return String::new();
+    //     println!("{}",res);
+    //     return String::new();
 
-    }
+    // }
     #[allow(dead_code)]
     pub async fn get_access_token(&self) -> reqwest::Result<String> {
        
@@ -342,7 +357,7 @@ impl Twitter {
                 .create(true)
                 .open("twitter_access_token.json")
                 .unwrap();
-                fout.write_all(serialized_res.as_bytes());
+                let _ = fout.write_all(serialized_res.as_bytes());
             }
 
             return Ok(tokens.access_token);

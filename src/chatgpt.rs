@@ -1,9 +1,6 @@
 use serde_json::json;
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use tokio::time;
 
-use crate::helper::is_within_twitter_limit;
 
 pub struct ChatGPT {
     api_key: String
@@ -29,7 +26,7 @@ impl ChatGPT {
     }
     
 
-    pub async fn get_response(&self, prompt: String) -> reqwest::Result<String> {
+    pub async fn get_response(&self, prompt: String) -> anyhow::Result<String> {
         let client = reqwest::Client::new();
         let post_body = json!({
             "model" : "gpt-3.5-turbo",
@@ -38,8 +35,6 @@ impl ChatGPT {
             });
 
     
-        
-
     
         let res = client.post("https://api.openai.com/v1/chat/completions")
         .bearer_auth(&self.api_key)
@@ -51,7 +46,7 @@ impl ChatGPT {
         .await?;
         
         println!("{}",res);
-        let deserialized: Response = serde_json::from_str(&res).unwrap();
+        let deserialized: Response = serde_json::from_str(&res)?;
         let response = deserialized.choices[0].message.content.clone();
 
 
