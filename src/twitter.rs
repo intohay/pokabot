@@ -13,6 +13,7 @@ use serde::{Serialize, Deserialize};
 use serde_json::json;
 use bytes::Bytes;
 use tokio::time;
+use reqwest::header::HeaderValue;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Token {
@@ -143,14 +144,35 @@ impl Twitter {
         base64::encode(&hash)
     }
 
-    
+    pub async fn post_hello(&self) -> anyhow::Result<()> {
+        let client = reqwest::Client::new();
+        let header_auth = self.get_request_header("POST", "https://api.twitter.com/2/tweets");
+
+
+        let post_data = json!({ "text" : "hello, world" });
+
+        let mut headers = HeaderMap::new();
+        headers.insert(AUTHORIZATION, header_auth.parse().unwrap());
+        
+        let res = client.post("https://api.twitter.com/2/tweets")
+            .headers(headers)
+            .header("Content-Type","application/json")
+            .json(&post_data)
+            .send()
+            .await?.text().await?;
+
+        println!("{}", res);
+        Ok(())
+    }
     
     async fn post_tweet(&self, post_data: &Value) -> anyhow::Result<TweetResponse> {
         let client = reqwest::Client::new();
-        let bearer_token = self.get_access_token().await?;
+         let header_auth = self.get_request_header("POST", "https://api.twitter.com/2/tweets");
+        let mut headers = HeaderMap::new();
+        headers.insert(AUTHORIZATION, header_auth.parse().unwrap());
 
         let res = client.post("https://api.twitter.com/2/tweets")
-            .bearer_auth(&bearer_token)
+            .headers(headers)
             .header("Content-Type","application/json")
             .json(post_data)
             .send()
