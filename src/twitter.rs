@@ -178,6 +178,8 @@ impl Twitter {
             .send()
             .await?.text().await?;
 
+        println!("{}", res);
+        
         let tweet : TweetResponse = serde_json::from_str(&res)?;
         
         return Ok(tweet);
