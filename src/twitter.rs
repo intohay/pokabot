@@ -167,7 +167,7 @@ impl Twitter {
     
     async fn post_tweet(&self, post_data: &Value) -> anyhow::Result<TweetResponse> {
         let client = reqwest::Client::new();
-         let header_auth = self.get_request_header("POST", "https://api.twitter.com/2/tweets");
+        let header_auth = self.get_request_header("POST", "https://api.twitter.com/2/tweets");
         let mut headers = HeaderMap::new();
         headers.insert(AUTHORIZATION, header_auth.parse().unwrap());
 
@@ -179,7 +179,7 @@ impl Twitter {
             .await?.text().await?;
 
         println!("{}", res);
-        
+
         let tweet : TweetResponse = serde_json::from_str(&res)?;
         
         return Ok(tweet);
@@ -221,7 +221,7 @@ impl Twitter {
                 },
                 Err(error) => {
                     eprintln!("{:?}",error);
-                    time::sleep(time::Duration::from_secs(10)).await;
+                    time::sleep(time::Duration::from_secs(60)).await;
                 }
             }
         }
@@ -249,7 +249,7 @@ impl Twitter {
                     },
                     Err(error) => {
                         eprintln!("{:?}", error);
-                        time::sleep(time::Duration::from_secs(10)).await;
+                        time::sleep(time::Duration::from_secs(60)).await;
                     }
                 }
             }

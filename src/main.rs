@@ -17,7 +17,10 @@ use bytes::Bytes;
 use diesel::prelude::*;
 use diesel::SqliteConnection;
 use pokabot::models::{NewBlog, NewNews};
-
+use fs2::FileExt;
+use std::fs::OpenOptions;
+use std::path::Path;
+use std::io::{self, ErrorKind};
 
 
 // fn extract_path(url_or_path: &str) -> String {
@@ -131,7 +134,7 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
     let images = blog.images();
     let body = blog.body();
     let posted_at = blog.posted_at();
-
+    save_blog(post_id, name, posted_at, "none", connection);
 
     let prompt = if lang == "jp" {  
         if name == "ポカ" {
@@ -147,19 +150,22 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
         }
     };
 
+    
+
     loop {
         let body = chatgpt.get_response(format!("{}\n {}",prompt, body )).await?;
 
         let text = format!("{} \n{}", body, post_url);
 
         if helper::is_within_twitter_limit(&text) {
-             twitter.post_thread(&text, &images).await?;
-             break;
+            twitter.post_thread(&text, &images).await?;
+            break;
         }
     }
 
-    // only If the post was tweeted successfuly, save the blog
     save_blog(post_id, name, posted_at, lang, connection);
+
+    
 
     Ok(())
     
@@ -407,7 +413,7 @@ fn save_news(news_id: &str, posted_at: &NaiveDateTime, lang: &str, connection: &
 
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     dotenv().ok();
 
     let gpt_api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set.");
@@ -438,10 +444,40 @@ async fn main() {
     let lang = args.get(1).expect("Specify an argument.");
 
     
-    tweet_until_latest_post(&twitter, &chatgpt, &scraper, lang, connection).await;
-    tweet_until_latest_news(&twitter, &chatgpt, &scraper, lang, connection).await;
+    let lock_file_path = Path::new("app.lock");
+
+    // ロックファイルを作成または開く
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&lock_file_path)?;
+
+
+    match file.try_lock_exclusive() {
+        Ok(_) => {
+            // ロックが取得できた場合、プログラムを実行
+            println!("Lock acquired, running program...");
+            tweet_until_latest_post(&twitter, &chatgpt, &scraper, lang, connection).await;
+            tweet_until_latest_news(&twitter, &chatgpt, &scraper, lang, connection).await;
+
+            // ロックを解除
+            file.unlock()?;
+            println!("Program finished, lock released.");
+        }
+        Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
+            // ロックが既に取得されている場合、エラーメッセージを表示
+            eprintln!("Another instance of the program is already running.");
+        }
+        Err(e) => {
+            // その他のエラーが発生した場合、エラーメッセージを表示
+            eprintln!("An error occurred while trying to lock the file: {}", e);
+        }
+    }
 
     
+
+    Ok(())
     // tweet_instagram(&twitter, &chatgpt ).await;
 
     
