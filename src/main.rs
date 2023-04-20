@@ -136,7 +136,8 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
     let mut body = blog.body().to_string();
 
     if body.len() > max_length {
-        body.truncate(max_length);
+        let boundary = body.char_indices().nth(max_length).unwrap().0;
+        body.truncate(boundary);
     }
     let posted_at = blog.posted_at();
     save_blog(post_id, name, posted_at, "none", connection);
