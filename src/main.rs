@@ -122,6 +122,20 @@ async fn tweet_until_latest_post(twitter: &Twitter, chatgpt: &ChatGPT, scraper: 
 }
 
 
+fn truncate_string(input: &str, length: usize) -> String {
+    let mut truncated = String::new();
+    let mut char_count = 0;
+
+    for c in input.chars() {
+        if char_count >= length {
+            break;
+        }
+        truncated.push(c);
+        char_count += 1;
+    }
+
+    truncated
+}
 
 async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, lang: &str, connection: &mut SqliteConnection) -> anyhow::Result<()>{
 
@@ -133,12 +147,8 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
 
     let name = blog.name();
     let images = blog.images();
-    let mut body = blog.body().to_string();
-
-    if body.len() > max_length {
-        let boundary = body.char_indices().nth(max_length).unwrap().0;
-        body.truncate(boundary);
-    }
+    let body = truncate_string(blog.body(), max_length);
+    
     let posted_at = blog.posted_at();
     save_blog(post_id, name, posted_at, "none", connection);
 
