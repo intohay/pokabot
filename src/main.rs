@@ -129,10 +129,15 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
     let post_url = format!("https://www.hinatazaka46.com/s/official/diary/detail/{}?ima=0000&cd=member", post_id);
 
     let blog = scraper.scrape_blog(post_id).await?;
+    let max_length = 3800;
 
     let name = blog.name();
     let images = blog.images();
-    let body = blog.body();
+    let mut body = blog.body().to_string();
+
+    if body.len() > max_length {
+        body.truncate(max_length);
+    }
     let posted_at = blog.posted_at();
     save_blog(post_id, name, posted_at, "none", connection);
 
