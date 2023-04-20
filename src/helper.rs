@@ -21,7 +21,7 @@ pub fn count_twitter_chars(text: &str) -> usize {
         }
 
 pub fn is_within_twitter_limit(text: &str) -> bool {
-    const TWITTER_LIMIT: usize = 260;
+    const TWITTER_LIMIT: usize = 280;
     count_twitter_chars(text) <= TWITTER_LIMIT
 }
 
