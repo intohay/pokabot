@@ -146,6 +146,7 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
     let max_length = 3800;
 
     let name = blog.name();
+    let title = blog.title();
     let images = blog.images();
     let body = truncate_string(blog.body(), max_length);
 
@@ -154,11 +155,25 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
 
     let prompt = if lang == "jp" {  
         if name == "ポカ" {
-            format!("---\n以下のブログを書いた本人になりきって、日本語40字以内で短めに、ブログの宣伝ツイートをしてください。ただし、最終的な文字数が50字を超えていた場合は、適宜不必要な部分を削って40字以内に収まるようにしてください。")
+            format!("
+            以下のブログを書いた本人になりきって、日本語40字以内で短めに、ブログの宣伝ツイートをしてください。ただし、必ずTwitterの文字数制限を遵守しなさい。
+            [タイトル] {} \n
+            [投稿者] {} \n
+            [本文] {}
+            ", title, name, body)
         } else if name == "四期生リレー" {
-            format!("---\n以下は日向坂46という日本の女性アイドルグループのある4期生のブログです。このブログを読んだ感想を、彼女のファンになったつもりで、アイドルオタクのような口調で、日本語40字以内で短めにツイートしなさい。ただし、最終的な文字数が40字を超えていた場合は、適宜不必要な部分を削って50字以内に収まるようにしてください。")
+            format!("
+            以下は、日向坂46という日本の女性アイドルグループのある4期生のブログです。このブログを読んだ感想を、彼女のファンになったつもりで、アイドルオタクのような口調で、日本語40字以内で短めにツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。
+            [タイトル] {} \n 
+            [投稿者] (本文中から推論しなさい)
+            [本文] {} ", title, body)
         } else {
-            format!("---\n以下は日向坂46という日本の女性アイドルグループのメンバーである{}のブログです。このブログを読んだ感想を、彼女のファンになったつもりで、アイドルオタクのような口調で、日本語40字以内で短めにツイートしなさい。ただし、最終的な文字数が40字を超えていた場合は、適宜不必要な部分を削って50字以内に収まるようにしてください。", name)
+            format!("
+            以下は日向坂46という日本の女性アイドルグループのメンバーのブログです。このブログを読んだ感想を、彼女のファンになったつもりで、アイドルオタクのような口調で、日本語40字以内で短めにツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。
+            [タイトル] {} \n
+            [投稿者] {} \n
+            [本文] {}
+            ", title, name, body)
         }
     } else {
         if name == "ポカ" {
@@ -171,7 +186,7 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
     
 
     loop {
-        let body = chatgpt.get_response(format!("{}\n {}",prompt, body )).await?;
+        let body = chatgpt.get_response(format!("{}",prompt)).await?;
 
         let text = format!("{} \n{}", body, post_url);
 
