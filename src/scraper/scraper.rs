@@ -157,20 +157,21 @@ impl Scraper {
 
         let mut images: Vec<Bytes> = vec![];
         for element in doc.select(&image_sel) {
-            let src = element.value().attr("src").unwrap();
+            if let Some(src) = element.value().attr("src") {
+                if !src.contains("https") {
+                    continue;
+                }
+                println!("{}", src);
             
-            if !src.contains("https") {
-                continue;
-            }
+                let bytes = reqwest::get(src).await?
+                                        .bytes().await?;
             
-            println!("{}", src);
-           
-            let bytes = reqwest::get(src).await?
-                                    .bytes().await?;
-           
-            images.push(bytes);
+                images.push(bytes);
 
-            time::sleep(time::Duration::from_secs(1)).await;
+                time::sleep(time::Duration::from_secs(1)).await;
+            }
+
+            
         }
 
         Ok(Blog{
