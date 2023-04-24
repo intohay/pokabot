@@ -148,21 +148,23 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
     let name = blog.name();
     let images = blog.images();
     let body = truncate_string(blog.body(), max_length);
-    
+
     let posted_at = blog.posted_at();
     save_blog(post_id, name, posted_at, "none", connection);
 
     let prompt = if lang == "jp" {  
         if name == "ポカ" {
-            "---\n以下のブログを書いた本人になりきって、日本語40字以内で短めに、ブログの宣伝ツイートをしてください。ただし、最終的な文字数が50字を超えていた場合は、適宜不必要な部分を削って40字以内に収まるようにしてください。"
+            format!("---\n以下のブログを書いた本人になりきって、日本語40字以内で短めに、ブログの宣伝ツイートをしてください。ただし、最終的な文字数が50字を超えていた場合は、適宜不必要な部分を削って40字以内に収まるようにしてください。")
+        } else if name == "四期生リレー" {
+            format!("---\n以下は日向坂46という日本の女性アイドルグループのある4期生のブログです。このブログを読んだ感想を、彼女のファンになったつもりで、アイドルオタクのような口調で、日本語40字以内で短めにツイートしなさい。ただし、最終的な文字数が40字を超えていた場合は、適宜不必要な部分を削って50字以内に収まるようにしてください。")
         } else {
-            "---\n以下のアイドルのブログを読んだ感想を、彼女のファンになったつもりで、カジュアルな口調で、日本語40字以内で短めにツイートしなさい。ただし、最終的な文字数が40字を超えていた場合は、適宜不必要な部分を削って50字以内に収まるようにしてください。"
+            format!("---\n以下は日向坂46という日本の女性アイドルグループのメンバーである{}のブログです。このブログを読んだ感想を、彼女のファンになったつもりで、アイドルオタクのような口調で、日本語40字以内で短めにツイートしなさい。ただし、最終的な文字数が40字を超えていた場合は、適宜不必要な部分を削って50字以内に収まるようにしてください。", name)
         }
     } else {
         if name == "ポカ" {
-            "---\n Act as the writer of the blog below and make a promotional tweet about it within 150 characters in English briefly."
+            format!("---\n Act as the writer of the blog below and make a promotional tweet about it within 150 characters in English briefly.")
         } else {
-            "---\nRead the idol's blog below and tweet your comment to it casually as one of her fans within 150 characters in English briefly."
+            format!("---\nRead the idol's blog below and tweet your comment to it casually as one of her fans within 150 characters in English briefly.")
         }
     };
 
@@ -474,8 +476,9 @@ async fn main() -> anyhow::Result<()> {
         Ok(_) => {
             // ロックが取得できた場合、プログラムを実行
             println!("Lock acquired, running program...");
-            tweet_until_latest_post(&twitter, &chatgpt, &scraper, lang, connection).await;
-            tweet_until_latest_news(&twitter, &chatgpt, &scraper, lang, connection).await;
+            // tweet_until_latest_post(&twitter, &chatgpt, &scraper, lang, connection).await;
+            // tweet_until_latest_news(&twitter, &chatgpt, &scraper, lang, connection).await;
+            twitter.post_tweet2().await;
 
             // ロックを解除
             file.unlock()?;
