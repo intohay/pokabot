@@ -491,9 +491,8 @@ async fn main() -> anyhow::Result<()> {
         Ok(_) => {
             // ロックが取得できた場合、プログラムを実行
             println!("Lock acquired, running program...");
-            // tweet_until_latest_post(&twitter, &chatgpt, &scraper, lang, connection).await;
-            // tweet_until_latest_news(&twitter, &chatgpt, &scraper, lang, connection).await;
-            twitter.post_tweet2().await;
+            tweet_until_latest_post(&twitter, &chatgpt, &scraper, lang, connection).await;
+            tweet_until_latest_news(&twitter, &chatgpt, &scraper, lang, connection).await;
 
             // ロックを解除
             file.unlock()?;
