@@ -249,7 +249,7 @@ impl Twitter {
                     },
                     Err(error) => {
                         eprintln!("{:?}", error);
-                        time::sleep(time::Duration::from_secs(60)).await;
+                        time::sleep(time::Duration::from_secs(60*20)).await;
                     }
                 }
             }
