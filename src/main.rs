@@ -137,6 +137,16 @@ fn truncate_string(input: &str, length: usize) -> String {
     truncated
 }
 
+fn trim_outer_quotes(s: &str) -> &str {
+    if s.starts_with('"') && s.ends_with('"') {
+        &s[1..s.len() - 1]
+    } else if s.starts_with('「') && s.ends_with('」') {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}
+
 async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, lang: &str, connection: &mut SqliteConnection) -> anyhow::Result<()>{
 
     
@@ -163,13 +173,13 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
             ", title, name, body)
         } else if name == "四期生リレー" {
             format!("
-            以下は、日向坂46という日本の女性アイドルグループのある4期生のブログです。このブログを読んだ感想を、彼女のファンになったつもりで、短い一文(日本語20字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。
+            以下は、日向坂46という日本の女性アイドルグループのある4期生のブログです。このブログに関して、短い一文(日本語20字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。
             [タイトル] {} \n 
             [投稿者] (本文中から推論しなさい)
             [本文] {} ", title, body)
         } else {
             format!("
-            以下は、日向坂46という日本の女性アイドルグループのメンバーのブログです。このブログを読んだ感想を、彼女のファンになったつもりで、短い一文(日本語20字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。
+            あなたはアイドルオタクです。以下は、日向坂46という日本の女性アイドルグループのメンバーのブログです。このブログ内の何か一つ話題を取り上げ、それに関して短い一文(日本語20字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。
             [タイトル] {} \n
             [投稿者] {} \n
             [本文] {}
@@ -187,8 +197,10 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
 
     loop {
         let body = chatgpt.get_response(format!("{}",prompt)).await?;
+        
 
-        let text = format!("{} \n{}", body, post_url);
+        
+        let text = format!("{} \n{}", trim_outer_quotes(&body), post_url);
 
         if helper::is_within_twitter_limit(&text) {
             twitter.post_thread(&text, &images).await?;
