@@ -29,7 +29,7 @@ impl ChatGPT {
     pub async fn get_response(&self, prompt: String) -> anyhow::Result<String> {
         let client = reqwest::Client::new();
         let post_body = json!({
-            "model" : "gpt-4",
+            "model" : "gpt-4-1106-preview",
             "messages" : [{"role": "user", "content": prompt}],
             "temperature": 0.7,
             });
