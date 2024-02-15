@@ -246,7 +246,7 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
             ", now_str, name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"), title, name, body)
         } else {
             format!("
-            あなたはアイドルオタクです。以下は、日向坂46という日本の女性アイドルグループのメンバーのブログです。このブログ内の何か一つ話題を取り上げ、それに関して短い一文(日本語20字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。現在時刻は{}です。
+            あなたはアイドルオタクです。以下は、日向坂46という日本の女性アイドルグループのメンバーのブログです。このブログ内の何か一つ話題を取り上げ、それに関してあなたが思ったことや考えたことを短い一文(日本語30字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。現在時刻は{}です。
             あだ名リストは適宜使ってください。
             [あだ名リスト] \n {} \n
             [タイトル] {} \n
