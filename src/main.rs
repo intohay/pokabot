@@ -21,7 +21,8 @@ use fs2::FileExt;
 use std::fs::OpenOptions;
 use std::path::Path;
 use std::io::{self, ErrorKind};
-
+extern crate chrono;
+use chrono::Local;
 
 // fn extract_path(url_or_path: &str) -> String {
 //     // 相対パスの場合、適当なドメインを追加して完全なURLを作成
@@ -41,15 +42,50 @@ use std::io::{self, ErrorKind};
 async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, lang: &str, connection: &mut SqliteConnection) -> anyhow::Result<()> {
 
     let news = scraper.scrape_news(news_id).await?;
+    let now = Local::now();
+    let now_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
+    let name2nickname = [
+        ("加藤史帆", "かとし"),
+        ("齊藤京子", "きょんこ"),
+        ("佐々木久美", "くみてん"),
+        ("佐々木美玲", "みーぱん"),
+        ("高瀬愛奈", "まなふぃ"),
+        ("高本彩花", "おたけ"),
+        ("東村芽依", "めいめい"),
+        ("金村美玖", "みくちゃん"),
+        ("河田陽菜", "ひなちゃん"),
+        ("小坂菜緒", "こさかな"),
+        ("富田鈴花", "すーじー"),
+        ("丹生明里", "にぶちゃん"),
+        ("濱岸ひより", "ひよたん"),
+        ("松田好花", "このちゃん"),
+        ("上村ひなの", "ひなのちゃん"),
+        ("髙橋未来虹", "みくにん"),
+        ("森本茉莉", "まりぃ"),
+        ("山口陽世", "ぱる"),
+        ("石塚瑶季", "たまちゃん"),
+        ("小西夏菜実", "こにしん"),
+        ("清水理央","りおちゃん"),
+        ("正源司陽子", "よーこ"),
+        ("竹内希来里", "きらりん"),
+        ("平尾帆夏", "ひらほー"),
+        ("平岡海月","みっちゃん"),
+        ("藤嶌果歩","かほりん"),
+        ("宮地すみれ","すみれちゃん"),
+        ("山下葉留花","はるはる"),
+        ("渡辺莉奈","りなし")];
 
-    let prompt = if lang == "jp" {
-        "以下は、日向坂46というアイドルグループに関するニュースです。ファンになったつもりで、ニュースの内容を要約し、カジュアルな日本語40字以内で短めにツイートしなさい。"
-    } else {
-        "Below is news on Hinatazaka46, Japanese idol group. Tweet summary of the news casually within 150 characters in English."
+
+    let prompt = {
+        format!("以下は、日向坂46というアイドルグループに関するニュースです。
+        ファンになったつもりで、ニュースの内容を要約し、カジュアルな日本語40字以内で短めにツイートしなさい。
+        現在時刻は{}です。
+        あだ名リストは適宜使ってください。
+        [あだ名リスト] \n {}", now_str, name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"))
     };
 
     loop {
-        let body = chatgpt.get_response(format!("{}\n {}", prompt, news.body())).await?;
+        let body = chatgpt.get_response(format!("{}\n [ニュース] \n {}", prompt, news.body())).await?;
         let news_url = news.url();
         let images = news.images();
 
@@ -163,27 +199,60 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
     let posted_at = blog.posted_at();
     save_blog(post_id, name, posted_at, "none", connection);
 
+    let now = Local::now();
+    let now_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
+
+    let name2nickname = [
+        ("加藤史帆", "かとし"),
+        ("齊藤京子", "きょんこ"),
+        ("佐々木久美", "くみてん"),
+        ("佐々木美玲", "みーぱん"),
+        ("高瀬愛奈", "まなふぃ"),
+        ("高本彩花", "おたけ"),
+        ("東村芽依", "めいめい"),
+        ("金村美玖", "みくちゃん"),
+        ("河田陽菜", "ひなちゃん"),
+        ("小坂菜緒", "こさかな"),
+        ("富田鈴花", "すーじー"),
+        ("丹生明里", "にぶちゃん"),
+        ("濱岸ひより", "ひよたん"),
+        ("松田好花", "このちゃん"),
+        ("上村ひなの", "ひなのちゃん"),
+        ("髙橋未来虹", "みくにん"),
+        ("森本茉莉", "まりぃ"),
+        ("山口陽世", "ぱる"),
+        ("石塚瑶季", "たまちゃん"),
+        ("小西夏菜実", "こにしん"),
+        ("清水理央","りおちゃん"),
+        ("正源司陽子", "よーこ"),
+        ("竹内希来里", "きらりん"),
+        ("平尾帆夏", "ひらほー"),
+        ("平岡海月","みっちゃん"),
+        ("藤嶌果歩","かほりん"),
+        ("宮地すみれ","すみれちゃん"),
+        ("山下葉留花","はるはる"),
+        ("渡辺莉奈","りなし")];
+
+
     let prompt = if lang == "jp" {  
         if name == "ポカ" {
             format!("
-            以下のブログを書いた本人になりきって、短い一文(日本語20字程度)で、ブログの宣伝ツイートをしてください。ただし、必ずTwitterの文字数制限を遵守しなさい。
+            以下のブログを書いた本人になりきって、短い一文(日本語20字程度)で、ブログの宣伝ツイートをしてください。ただし、必ずTwitterの文字数制限を遵守しなさい。現在時刻は{}です。
+            あだ名リストは適宜使ってください。
+            [あだ名リスト] \n {} \n
             [タイトル] {} \n
             [投稿者] {} \n
             [本文] {}
-            ", title, name, body)
-        } else if name == "四期生リレー" {
-            format!("
-            以下は、日向坂46という日本の女性アイドルグループのある4期生のブログです。このブログに関して、短い一文(日本語20字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。
-            [タイトル] {} \n 
-            [投稿者] (本文中から推論しなさい)
-            [本文] {} ", title, body)
+            ", now_str, name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"), title, name, body)
         } else {
             format!("
-            あなたはアイドルオタクです。以下は、日向坂46という日本の女性アイドルグループのメンバーのブログです。このブログ内の何か一つ話題を取り上げ、それに関して短い一文(日本語20字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。
+            あなたはアイドルオタクです。以下は、日向坂46という日本の女性アイドルグループのメンバーのブログです。このブログ内の何か一つ話題を取り上げ、それに関して短い一文(日本語20字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。現在時刻は{}です。
+            あだ名リストは適宜使ってください。
+            [あだ名リスト] \n {} \n
             [タイトル] {} \n
             [投稿者] {} \n
             [本文] {}
-            ", title, name, body)
+            ", now_str, name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"), title, name, body)
         }
     } else {
         if name == "ポカ" {
