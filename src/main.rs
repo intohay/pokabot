@@ -23,7 +23,7 @@ use std::path::Path;
 use std::io::{self, ErrorKind};
 extern crate chrono;
 use chrono::Local;
-
+use std::collections::HashMap;
 // fn extract_path(url_or_path: &str) -> String {
 //     // 相対パスの場合、適当なドメインを追加して完全なURLを作成
 //     let url = if !url_or_path.starts_with("http://") && !url_or_path.starts_with("https://") {
@@ -233,35 +233,66 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
         ("山下葉留花","はるはる"),
         ("渡辺莉奈","りなし")];
 
+    let blog_hashtags = [
+        ("加藤 史帆", "#shihoblog"),
+        ("齊藤 京子", "#kyonkoblog"),
+        ("佐々木 久美", "#kumiblog"),
+        ("佐々木 美玲", "#mireiblog"),
+        ("高瀬 愛奈", "#manablog"),
+        ("高本 彩花", "#ayakablog"),
+        ("東村 芽依", "#meiblog"),
+        ("金村 美玖", "#mikublog"),
+        ("河田 陽菜", "#hinablog"),
+        ("小坂 菜緒", "#naoblog"),
+        ("富田 鈴花", "#suzukablog"),
+        ("丹生 明里", "#nibublog"),
+        ("濱岸 ひより", "#hiyoriblog"),
+        ("松田 好花", "#konokablog"),
+        ("上村 ひなの", "#hinanoblog"),
+        ("髙橋 未来虹", "#mikuniblog"),
+        ("森本 茉莉", "#marieblog"),
+        ("山口 陽世", "#haruyoblog"),
+        ("石塚 瑶季", "#tamakiblog"),
+        ("小西 夏菜実", "#nanamiblog"),
+        ("清水 理央","#rioblog"),
+        ("正源 司陽子", "#yokoblog"),
+        ("竹内 希来里", "#kirariblog"),
+        ("平尾 帆夏", "#hirahoblog"),
+        ("平岡 海月","#mitsukiblog"),
+        ("藤嶌 果歩","#kahoblog"),
+        ("宮地 すみれ","#sumireblog"),
+        ("山下 葉留花","#harukablog"),
+        ("渡辺 莉奈","#rinashiblog")
+    ];
+    let mut hashtags_map: HashMap<&str, &str> = HashMap::new();
+    for (name, hashtag) in blog_hashtags {
+        hashtags_map.insert(name, hashtag);
+    }
+    let default_hashtag = "#日向坂46";
+    let hashtag = hashtags_map.get(name).unwrap_or(&default_hashtag);
 
-    let prompt = if lang == "jp" {  
+    let prompt = 
         if name == "ポカ" {
             format!("
             以下のブログを書いた本人になりきって、短い一文(日本語20字程度)で、ブログの宣伝ツイートをしてください。ただし、必ずTwitterの文字数制限を遵守しなさい。現在時刻は{}です。
-            あだ名リストは適宜使ってください。
+            あだ名リストは適宜使ってください。またハッシュタグは必ず{}を含めるようにしてください。
             [あだ名リスト] \n {} \n
             [タイトル] {} \n
             [投稿者] {} \n
             [本文] {}
-            ", now_str, name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"), title, name, body)
+            ", 
+            now_str,"#pokablog", name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"), title, name, body)
         } else {
             format!("
             あなたはアイドルオタクです。以下は、日向坂46という日本の女性アイドルグループのメンバーのブログです。このブログ内の何か一つ話題を取り上げ、それに関してあなたが思ったことや考えたことを短い一文(日本語30字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。現在時刻は{}です。
-            あだ名リストは適宜使ってください。
+            あだ名リストは適宜使ってください。またハッシュタグは必ず{}を含めるようにしてください。
             [あだ名リスト] \n {} \n
             [タイトル] {} \n
             [投稿者] {} \n
             [本文] {}
-            ", now_str, name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"), title, name, body)
-        }
-    } else {
-        if name == "ポカ" {
-            format!("---\n Act as the writer of the blog below and make a promotional tweet about it within 150 characters in English briefly.")
-        } else {
-            format!("---\nRead the idol's blog below and tweet your comment to it casually as one of her fans within 150 characters in English briefly.")
-        }
-    };
-
+            ", now_str, hashtag ,name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"), title, name, body)
+        };
+   
     
 
     loop {
