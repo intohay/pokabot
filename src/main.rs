@@ -1,5 +1,6 @@
 use dotenv::dotenv;
 use std::env;
+use std::mem;
 pub mod scraper;
 use crate::scraper::scraper::Scraper;
 use crate::twitter::Twitter;
@@ -24,64 +25,36 @@ use std::io::{self, ErrorKind};
 extern crate chrono;
 use chrono::Local;
 use std::collections::HashMap;
-// fn extract_path(url_or_path: &str) -> String {
-//     // 相対パスの場合、適当なドメインを追加して完全なURLを作成
-//     let url = if !url_or_path.starts_with("http://") && !url_or_path.starts_with("https://") {
-//         format!("https://example.com{}", url_or_path)
-//     } else {
-//         url_or_path.to_string()
-//     };
-
-//     let parsed_url = Url::parse(&url).unwrap();
-
-//     // URLからパス部分を取得して返す
-//     parsed_url.path().to_string()
-// }
+use anyhow::{Context, Result};
 
 
-async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, lang: &str, connection: &mut SqliteConnection) -> anyhow::Result<()> {
+#[derive(Debug, Deserialize)]
+struct Person {
+    full_name: String,
+    nickname: String,
+    hashtag: String,
+}
+
+
+
+
+async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper,connection: &mut SqliteConnection, member_info: &HashMap<String, Person> ) -> Result<()> {
 
     let news = scraper.scrape_news(news_id).await?;
     let now = Local::now();
     let now_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
-    let name2nickname = [
-        ("加藤史帆", "かとし"),
-        ("齊藤京子", "きょんこ"),
-        ("佐々木久美", "くみてん"),
-        ("佐々木美玲", "みーぱん"),
-        ("高瀬愛奈", "まなふぃ"),
-        ("高本彩花", "おたけ"),
-        ("東村芽依", "めいめい"),
-        ("金村美玖", "みくちゃん"),
-        ("河田陽菜", "ひなちゃん"),
-        ("小坂菜緒", "こさかな"),
-        ("富田鈴花", "すーじー"),
-        ("丹生明里", "にぶちゃん"),
-        ("濱岸ひより", "ひよたん"),
-        ("松田好花", "このちゃん"),
-        ("上村ひなの", "ひなのちゃん"),
-        ("髙橋未来虹", "みくにん"),
-        ("森本茉莉", "まりぃ"),
-        ("山口陽世", "ぱる"),
-        ("石塚瑶季", "たまちゃん"),
-        ("小西夏菜実", "こにしん"),
-        ("清水理央","りおちゃん"),
-        ("正源司陽子", "よーこ"),
-        ("竹内希来里", "きらりん"),
-        ("平尾帆夏", "ひらほー"),
-        ("平岡海月","みっちゃん"),
-        ("藤嶌果歩","かほりん"),
-        ("宮地すみれ","すみれちゃん"),
-        ("山下葉留花","はるはる"),
-        ("渡辺莉奈","りなし")];
 
 
     let prompt = {
         format!("以下は、日向坂46というアイドルグループに関するニュースです。
         ファンになったつもりで、ニュースの内容を要約し、カジュアルな日本語40字以内で短めにツイートしなさい。
         現在時刻は{}です。
-        あだ名リストは適宜使ってください。
-        [あだ名リスト] \n {}", now_str, name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"))
+        文章中にメンバーの名前が現れたときは下のあだ名リストを使ってあだ名に置き換えてください。\n
+        [あだ名リスト] \n {} \n 
+        
+        出力形式: \n
+        {{'output': 'Tweet text'}} \n
+        ", now_str, member_info.iter().map(|(name, person)| format!("{}: {}", name, person.nickname)).collect::<Vec<String>>().join("\n"))
     };
 
     loop {
@@ -101,23 +74,23 @@ async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper
         }
     }
 
-    save_news(news_id, news.posted_at(), lang, connection);
+    save_news(news_id, news.posted_at(), connection);
 
 
     Ok(())
 }
 
-async fn tweet_until_latest_news(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, lang: &str, connection: &mut SqliteConnection) {
+async fn tweet_until_latest_news(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, connection: &mut SqliteConnection, member_info: &HashMap<String, Person>) {
 
    
     if let Ok(news_ids) = scraper.scrape_news_ids().await {
         for news_id in news_ids.into_iter().rev() {
-            let is_tweeted = is_news_tweeted(&news_id, lang, connection);
+            let is_tweeted = is_news_tweeted(&news_id, connection);
 
             match is_tweeted {
                 Ok(true) => continue,
                 Ok(false) | Err(_) => { 
-                    let result = tweet_news(&news_id, &twitter, &chatgpt, &scraper, lang, connection).await;
+                    let result = tweet_news(&news_id, &twitter, &chatgpt, &scraper, connection, member_info).await;
                     match result {
                         Ok(_) => println!("Tweeted successfully!"),
                         Err(error) => eprintln!("{:?}", error)
@@ -132,18 +105,18 @@ async fn tweet_until_latest_news(twitter: &Twitter, chatgpt: &ChatGPT, scraper: 
 
 }
 
-async fn tweet_until_latest_post(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, lang: &str, connection: &mut SqliteConnection){
+async fn tweet_until_latest_post(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, connection: &mut SqliteConnection, member_info: &HashMap<String, Person>){
 
 
     if let Ok(post_ids) = scraper.scrape_post_ids().await {
         for post_id in post_ids.into_iter().rev() {
 
-            let is_tweeted = is_post_tweeted(post_id, lang, connection);
+            let is_tweeted = is_post_tweeted(post_id, connection);
 
             match is_tweeted {
                 Ok(true) => continue,
                 Ok(false) | Err(_) => {
-                    let result = tweet_blog(post_id, &twitter, &chatgpt, &scraper, lang, connection).await;
+                    let result = tweet_blog(post_id, &twitter, &chatgpt, &scraper, connection, member_info).await;
                     match result {
                         Ok(_) => println!("Tweeted successfully!"),
                         Err(error) => eprintln!("{:?}", error)
@@ -173,17 +146,8 @@ fn truncate_string(input: &str, length: usize) -> String {
     truncated
 }
 
-fn trim_outer_quotes(s: &str) -> &str {
-    if s.starts_with('"') && s.ends_with('"') {
-        &s[1..s.len() - 1]
-    } else if s.starts_with('「') && s.ends_with('」') {
-        &s[1..s.len() - 1]
-    } else {
-        s
-    }
-}
 
-async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, lang: &str, connection: &mut SqliteConnection) -> anyhow::Result<()>{
+async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, connection: &mut SqliteConnection, member_info: &HashMap<String, Person>) -> Result<()>{
 
     
     let post_url = format!("https://www.hinatazaka46.com/s/official/diary/detail/{}?ima=0000&cd=member", post_id);
@@ -197,110 +161,60 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
     let body = truncate_string(blog.body(), max_length);
 
     let posted_at = blog.posted_at();
-    save_blog(post_id, name, posted_at, "none", connection);
+    save_blog(post_id, name, posted_at, connection);
 
     let now = Local::now();
     let now_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
-    let name2nickname = [
-        ("加藤史帆", "かとし"),
-        ("齊藤京子", "きょんこ"),
-        ("佐々木久美", "くみてん"),
-        ("佐々木美玲", "みーぱん"),
-        ("高瀬愛奈", "まなふぃ"),
-        ("高本彩花", "おたけ"),
-        ("東村芽依", "めいめい"),
-        ("金村美玖", "みくちゃん"),
-        ("河田陽菜", "ひなちゃん"),
-        ("小坂菜緒", "こさかな"),
-        ("富田鈴花", "すーじー"),
-        ("丹生明里", "にぶちゃん"),
-        ("濱岸ひより", "ひよたん"),
-        ("松田好花", "このちゃん"),
-        ("上村ひなの", "ひなのちゃん"),
-        ("髙橋未来虹", "みくにん"),
-        ("森本茉莉", "まりぃ"),
-        ("山口陽世", "ぱる"),
-        ("石塚瑶季", "たまちゃん"),
-        ("小西夏菜実", "こにしん"),
-        ("清水理央","りおちゃん"),
-        ("正源司陽子", "よーこ"),
-        ("竹内希来里", "きらりん"),
-        ("平尾帆夏", "ひらほー"),
-        ("平岡海月","みっちゃん"),
-        ("藤嶌果歩","かほりん"),
-        ("宮地すみれ","すみれちゃん"),
-        ("山下葉留花","はるはる"),
-        ("渡辺莉奈","りなし")];
-
-    let blog_hashtags = [
-        ("加藤 史帆", "#shihoblog"),
-        ("齊藤 京子", "#kyonkoblog"),
-        ("佐々木 久美", "#kumiblog"),
-        ("佐々木 美玲", "#mireiblog"),
-        ("高瀬 愛奈", "#manablog"),
-        ("高本 彩花", "#ayakablog"),
-        ("東村 芽依", "#meiblog"),
-        ("金村 美玖", "#mikublog"),
-        ("河田 陽菜", "#hinablog"),
-        ("小坂 菜緒", "#naoblog"),
-        ("富田 鈴花", "#suzukablog"),
-        ("丹生 明里", "#nibublog"),
-        ("濱岸 ひより", "#hiyoriblog"),
-        ("松田 好花", "#konokablog"),
-        ("上村 ひなの", "#hinanoblog"),
-        ("髙橋 未来虹", "#mikuniblog"),
-        ("森本 茉莉", "#marieblog"),
-        ("山口 陽世", "#haruyoblog"),
-        ("石塚 瑶季", "#tamakiblog"),
-        ("小西 夏菜実", "#nanamiblog"),
-        ("清水 理央","#rioblog"),
-        ("正源 司陽子", "#yokoblog"),
-        ("竹内 希来里", "#kirariblog"),
-        ("平尾 帆夏", "#hirahoblog"),
-        ("平岡 海月","#mitsukiblog"),
-        ("藤嶌 果歩","#kahoblog"),
-        ("宮地 すみれ","#sumireblog"),
-        ("山下 葉留花","#harukablog"),
-        ("渡辺 莉奈","#rinashiblog")
-    ];
-    let mut hashtags_map: HashMap<&str, &str> = HashMap::new();
-    for (name, hashtag) in blog_hashtags {
-        hashtags_map.insert(name, hashtag);
-    }
+    
     let default_hashtag = "#日向坂46";
-    let hashtag = hashtags_map.get(name).unwrap_or(&default_hashtag);
+    let person = member_info.get(name);
+    let mut hashtag = "";
+    let mut nickname = "";
+    if let Some(person) = person {
+        hashtag = &person.hashtag;
+        nickname = &person.nickname;
+    } else {
+        hashtag = default_hashtag;
+    }
+
+    
 
     let prompt = 
         if name == "ポカ" {
             format!("
-            以下のブログを書いた本人になりきって、短い一文(日本語20字程度)で、ブログの宣伝ツイートをしてください。ただし、必ずTwitterの文字数制限を遵守しなさい。現在時刻は{}です。
-            あだ名リストは適宜使ってください。またハッシュタグは必ず{}を含めるようにしてください。
+            以下のブログを書いた本人になりきって、短い一文で、ブログの宣伝ツイートをしてください。ただし、必ずTwitterの文字数制限を遵守しなさい。現在時刻は{}です。
+            メンバーの名前が文章中に現れたときは、下のあだ名リストを使ってあだ名に置き換えてっください。またハッシュタグは必ず{}を含めるようにしてください。\n
             [あだ名リスト] \n {} \n
             [タイトル] {} \n
             [投稿者] {} \n
-            [本文] {}
+            [本文] \n {} \n
+
+            出力形式: \n
+            {{'output': 'Tweet text'}} \n
             ", 
-            now_str,"#pokablog", name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"), title, name, body)
+            now_str,"#pokablog", member_info.iter().map(|(name, person)| format!("{}: {}", name, person.nickname)).collect::<Vec<String>>().join("\n"), title, name, body)
         } else {
             format!("
-            あなたはアイドルオタクです。以下は、日向坂46という日本の女性アイドルグループのメンバーのブログです。このブログ内の何か一つ話題を取り上げ、それに関してあなたが思ったことや考えたことを短い一文(日本語30字程度)でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。現在時刻は{}です。
-            あだ名リストは適宜使ってください。またハッシュタグは必ず{}を含めるようにしてください。
+            あなたはアイドルオタクです。以下は、日向坂46という日本の女性アイドルグループのメンバーのブログです。このブログ内の何か一つの話題を取り上げ、それに関してあなたが思ったことや考えたことを短い一文でツイートしなさい。ただし、必ずTwitterの文字数制限を遵守しなさい。現在時刻は{}です。
+            メンバーの名前が文章中に現れたときは、下のあだ名リストを使ってあだ名に置き換えてっください。またハッシュタグは必ず{}を含めるようにしてください。
             [あだ名リスト] \n {} \n
             [タイトル] {} \n
-            [投稿者] {} \n
-            [本文] {}
-            ", now_str, hashtag ,name2nickname.iter().map(|(name, nickname)| format!("{}: {}", name, nickname)).collect::<Vec<String>>().join("\n"), title, name, body)
+            [投稿者] {} (あだ名: {}) \n
+            [本文] \n {} \n
+
+            出力形式: \n
+            {{'output': 'Tweet text'}} \n
+            ", now_str, hashtag, member_info.iter().map(|(name, person)| format!("{}: {}", name, person.nickname)).collect::<Vec<String>>().join("\n"), title, name, nickname, body)
         };
    
     
 
     loop {
         let body = chatgpt.get_response(format!("{}",prompt)).await?;
-        
 
         
-        let text = format!("{} \n{}", trim_outer_quotes(&body), post_url);
+        let text = format!("{} \n{}", &body, post_url);
 
         if helper::is_within_twitter_limit(&text) {
             twitter.post_thread(&text, &images).await?;
@@ -308,7 +222,7 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
         }
     }
 
-    save_blog(post_id, name, posted_at, lang, connection);
+    // save_blog(post_id, name, posted_at, connection);
 
     
 
@@ -333,110 +247,7 @@ struct Node {
     shortcode: String
 }
 
-// struct Post {
-//     username: String,
-//     nickname: String,
-//     media : Vec<Bytes>,
-//     url: String, 
-//     text: String,
-// }
 
-
-
-
-
-// async fn tweet_instagram(twitter: &Twitter, chatgpt: &ChatGPT){
-    
-//     let json_file = "instagram_users.json";
-//     let json_data = fs::read_to_string(json_file).unwrap();
-
-//     // Parse the JSON data into a serde_json::Value
-//     let users:Vec<UserInfo> = serde_json::from_str(&json_data).unwrap();
-    
-
-//     for user in users {
-
-//         let username = user.username;
-//         let nickname = user.nickname;
-//         let entries = fs::read_dir(&username).unwrap();
-        
-//         let mut new_txt_files:Vec<String> = vec![];
-
-//         for entry in entries {
-//             if let Ok(entry) = entry {
-//                 let filename = String::from(entry.file_name().to_str().unwrap());
-//                 if let Ok(dt) =  Utc.datetime_from_str(&filename, "%Y-%m-%d_%H-%M-%S_UTC.txt") {
-//                     let timestamp = dt.timestamp();
-//                     let prev_timestamp = user.timestamp;
-//                     if prev_timestamp < timestamp {
-//                         new_txt_files.push(filename);
-//                     }
-                    
-//                 }
-//             }
-//         }
-
-//         let mut posts : Vec<Post> = vec![];
-
-
-//         for new_txt_file in new_txt_files {
-//             let mut f = File::open(format!("{}/{}",username, new_txt_file)).expect("file not found");
-//             let mut text = String::new();
-//             f.read_to_string(&mut text).unwrap();
-
-//             let mut i = 1;
-
-//             let mut media : Vec<Bytes> = vec![];
-
-//             loop {
-//                 let path = format!("{}/{}_{}.jpg",username, new_txt_file.replace(".txt", ""), i);
-//                 if let Ok(mut file) = File::open(path) {
-//                     let mut buffer = Vec::new();
-//                     file.read_to_end(&mut buffer).unwrap();
-//                     media.push(Bytes::from(buffer));
-//                     i += 1;
-//                 } else {
-//                     break;
-//                 }
-//             }  
-
-//             let json_file = new_txt_file.replace(".txt", ".json");
-//             let json_data = fs::read_to_string(format!("{}/{}",username, json_file)).unwrap();
-
-//             // Parse the JSON data into a serde_json::Value
-//             let info:PostInfo = serde_json::from_str(&json_data).unwrap();
-
-//             let post = Post {
-//                 username: username.clone(),
-//                 nickname: nickname.clone(),
-//                 media: media,
-//                 text: text,
-//                 url: format!("https://www.instagram.com/p/{}",info.node.shortcode)
-//             };
-
-//             posts.push(post);
-
-//         }
-
-
-            
-
-//         for post in posts {
-//             loop {
-//                 let prompt = format!("以下は、日本の日向坂46というアイドルグループのメンバーである、{}のInstagramの投稿に、本人が一緒に載せた文章です。投稿された画像をあなたに見せることはできませんが、この文章に対して、違和感のない感想を、日本語40字以内で短めに、そしてカジュアルにツイートしてください。\n {}", nickname, post.text);
-
-//                 let text = chatgpt.get_response(prompt).await.unwrap();
-//                 let text = format!("{} \n {}",text, post.url);
-//                 if helper::is_within_twitter_limit(&text) {
-//                     twitter.post_thread(&text, &post.media).await.unwrap();
-//                     break;
-//                 }
-        
-//             }
-//         }
-//     }
-    
-// }
 
 fn establish_connection() -> SqliteConnection {
     let database_url = "pokabot.db";
@@ -463,30 +274,25 @@ fn is_new_news(news_id_str: &str, connection: &mut SqliteConnection) -> bool {
     }
 }
 
-fn is_post_tweeted(post_id: i32, lang: &str, connection: &mut SqliteConnection) -> anyhow::Result<bool> {
+fn is_post_tweeted(post_id: i32, connection: &mut SqliteConnection) -> Result<bool> {
     use pokabot::schema::blogs::dsl::*;
     use pokabot::models::Blog;
     let blog = blogs.filter(id.eq(post_id)).first::<Blog>(connection)?;
-    if lang == "jp" {
-        return Ok(blog.jp_tweeted);
-    } else {
-        return Ok(blog.eng_tweeted);
-    }
+
+    return Ok(blog.jp_tweeted);
 }
 
-fn is_news_tweeted(n_id: &str, lang: &str, connection: &mut SqliteConnection) -> anyhow::Result<bool> {
+fn is_news_tweeted(n_id: &str, connection: &mut SqliteConnection) -> Result<bool> {
     use pokabot::schema::news::dsl::*;
     use pokabot::models::News;
     let n = news.filter(news_id.eq(n_id)).first::<News>(connection)?;
-    if lang == "jp" {
-        return Ok(n.jp_tweeted);
-    } else {
-        return Ok(n.eng_tweeted);
-    }
+
+    return Ok(n.jp_tweeted);
+
 }
 
 
-fn save_blog(post_id: i32, name: &str, posted_at: &NaiveDateTime, lang: &str, connection: &mut SqliteConnection) {
+fn save_blog(post_id: i32, name: &str, posted_at: &NaiveDateTime, connection: &mut SqliteConnection) {
     use pokabot::schema::blogs;
 
     if is_new_post(post_id, connection) {
@@ -494,8 +300,8 @@ fn save_blog(post_id: i32, name: &str, posted_at: &NaiveDateTime, lang: &str, co
             id: post_id,
             name: name,
             posted_at: posted_at.clone(), // 修正
-            jp_tweeted: if lang == "jp" {true} else {false},
-            eng_tweeted: if lang == "eng" {true} else {false},
+            jp_tweeted: true,
+            eng_tweeted: false,
         };
 
          diesel::insert_into(blogs::table)
@@ -507,22 +313,16 @@ fn save_blog(post_id: i32, name: &str, posted_at: &NaiveDateTime, lang: &str, co
         use pokabot::schema::blogs::dsl::*;
         let target = blogs.filter(pokabot::schema::blogs::id.eq(post_id));
 
-        if lang == "jp" {
-            diesel::update(target)
+        diesel::update(target)
             .set(pokabot::schema::blogs::jp_tweeted.eq(true))
             .execute(connection).expect("Error updating the post");
-        } else {
-            diesel::update(target)
-            .set(pokabot::schema::blogs::eng_tweeted.eq(true))
-            .execute(connection).expect("Error updating the post");
-        }
        
     }
 
    
 }
 
-fn save_news(news_id: &str, posted_at: &NaiveDateTime, lang: &str, connection: &mut SqliteConnection){
+fn save_news(news_id: &str, posted_at: &NaiveDateTime, connection: &mut SqliteConnection){
     use pokabot::schema::news;
 
     if is_new_news(news_id, connection) {
@@ -530,8 +330,8 @@ fn save_news(news_id: &str, posted_at: &NaiveDateTime, lang: &str, connection: &
         let new_news = NewNews {
             news_id: news_id,
             posted_at: posted_at.clone(), // 修正
-            jp_tweeted: if lang == "jp" {true} else {false},
-            eng_tweeted: if lang == "eng" {true} else {false},
+            jp_tweeted: true,
+            eng_tweeted: false,
         };
 
          diesel::insert_into(news::table)
@@ -542,23 +342,34 @@ fn save_news(news_id: &str, posted_at: &NaiveDateTime, lang: &str, connection: &
         println!("update news");
         use pokabot::schema::news::dsl::*;
         let target = news.filter(pokabot::schema::news::news_id.eq(news_id));
-
-        if lang == "jp" {
-            diesel::update(target)
+        
+        diesel::update(target)
             .set(pokabot::schema::news::jp_tweeted.eq(true))
             .execute(connection).expect("Error updating the post");
-        } else {
-            diesel::update(target)
-            .set(pokabot::schema::news::eng_tweeted.eq(true))
-            .execute(connection).expect("Error updating the post");
-        }
     }
 
 }
 
+fn read_csv(file_path: &str) -> Result<Vec<Person>> {
+    let mut rdr = csv::Reader::from_path(file_path)?;
+    let mut people = Vec::new();
+    for result in rdr.deserialize() {
+        let person: Person = result?;
+        people.push(person);
+    }
+    Ok(people)
+}
 
+fn generate_hashmap(people: Vec<Person>) -> HashMap<String, Person> {
+    let mut map = HashMap::new();
+    for person in people {
+        map.insert(person.full_name.clone(), person);
+    }
+
+    map
+}
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
     dotenv().ok();
 
     let gpt_api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set.");
@@ -584,11 +395,15 @@ async fn main() -> anyhow::Result<()> {
     let news_url = "https://www.hinatazaka46.com/s/official/?ima=0000";
     let scraper = Scraper::new(base, blog_url, news_url);
 
-    let args: Vec<String> = env::args().collect();
-
-    let lang = args.get(1).expect("Specify an argument.");
-
+    // data/members.csvからメンバーの情報を読み込む
+    let data = read_csv("data/members.csv")?;
+    let member_info = generate_hashmap(data);
     
+    // print member_info
+    for (name, person) in &member_info {
+        println!("{}: {}", name, person.nickname);
+    }
+
     let lock_file_path = Path::new("app.lock");
 
     // ロックファイルを作成または開く
@@ -603,8 +418,10 @@ async fn main() -> anyhow::Result<()> {
         Ok(_) => {
             // ロックが取得できた場合、プログラムを実行
             println!("Lock acquired, running program...");
-            tweet_until_latest_post(&twitter, &chatgpt, &scraper, lang, connection).await;
-            tweet_until_latest_news(&twitter, &chatgpt, &scraper, lang, connection).await;
+            tweet_until_latest_post(&twitter, &chatgpt, &scraper, connection, &member_info).await;
+            tweet_until_latest_news(&twitter, &chatgpt, &scraper, connection, &member_info).await;
+           
+            
 
             // ロックを解除
             file.unlock()?;
@@ -623,7 +440,7 @@ async fn main() -> anyhow::Result<()> {
     
 
     Ok(())
-    // tweet_instagram(&twitter, &chatgpt ).await;
+    
 
     
 

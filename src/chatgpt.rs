@@ -18,6 +18,13 @@ struct Choices {
 struct Message {
     content: String
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Output {
+    output: String
+}
+
+
 impl ChatGPT {
     pub fn new(api_key: String) -> ChatGPT {
         ChatGPT {
@@ -29,9 +36,18 @@ impl ChatGPT {
     pub async fn get_response(&self, prompt: String) -> anyhow::Result<String> {
         let client = reqwest::Client::new();
         let post_body = json!({
-            "model" : "gpt-4-1106-preview",
-            "messages" : [{"role": "user", "content": prompt}],
+            "model" : "gpt-4o",
+            "messages" : [
+                {
+                    "role": "system",
+                    "content": "出力はすべてJSON形式で返してください。"
+                },
+                {
+                    "role": "user", 
+                    "content": prompt
+                }],
             "temperature": 0.7,
+            "response_format": {"type": "json_object"}
             });
 
     
@@ -48,9 +64,13 @@ impl ChatGPT {
         println!("{}",res);
         let deserialized: Response = serde_json::from_str(&res)?;
         let response = deserialized.choices[0].message.content.clone();
+        
+        // interpret response as json
+        let output: Output = serde_json::from_str(response.as_str())?;
+        
 
 
-        Ok(response)
+        Ok(output.output)
 
     }
 }

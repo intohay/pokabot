@@ -142,7 +142,9 @@ impl Scraper {
         
 
         let a_tag = doc.select(&name_sel).next().unwrap();
-        let name = a_tag.text().collect::<String>();
+
+        // 名前の空白は除く
+        let name = a_tag.text().collect::<String>().replace(" ", "");
 
         let title = doc.select(&title_sel).next().unwrap().text().collect::<String>();
 
