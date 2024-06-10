@@ -26,6 +26,8 @@ extern crate chrono;
 use chrono::Local;
 use std::collections::HashMap;
 use anyhow::{Context, Result};
+use log::{debug, info};
+use env_logger;
 
 
 #[derive(Debug, Deserialize)]
@@ -69,7 +71,9 @@ async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper
         };
 
         if helper::is_within_twitter_limit(&text) {
+            println!("paased tweet limit");
             twitter.post_thread(&text, &images).await?;
+            println!("posted");
             break;
         }
     }
@@ -371,6 +375,7 @@ fn generate_hashmap(people: Vec<Person>) -> HashMap<String, Person> {
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
+    env_logger::init();
 
     let gpt_api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set.");
     let consummer_key = env::var("CK").expect("CK must be set.");

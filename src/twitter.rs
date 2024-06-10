@@ -14,7 +14,10 @@ use serde_json::json;
 use bytes::Bytes;
 use tokio::time;
 use reqwest::header::HeaderValue;
-
+use log::{debug, info};
+use anyhow::{Result, anyhow};
+use image::{DynamicImage, ImageOutputFormat, GenericImageView};
+use std::io::Cursor;
 #[derive(Serialize, Deserialize, Debug)]
 struct Token {
     access_token: String,
@@ -189,6 +192,7 @@ impl Twitter {
 
     pub async fn post_thread(&self, text: &str, images: &Vec<Bytes>) -> anyhow::Result<()> {
 
+        println!("in post_thread");
         let mut media_ids: Vec<String> = vec![];
         for image in images{
             let media_id = self.upload_image(image).await?;
@@ -197,6 +201,7 @@ impl Twitter {
         }
 
     
+        println!("uploaded images");
         let mut post_data = json!({ "text" : text });
     
        
@@ -262,17 +267,46 @@ impl Twitter {
 
 
     }
+    
+    async fn resize_and_compress_image(&self, input_bytes: &Bytes, max_size_bytes: u64) -> Result<Bytes> {
+    // バイトスライスから画像を読み込む
+    let img = image::load_from_memory(input_bytes)?;
+
+    // 画像サイズを取得
+    let (width, height) = img.dimensions();
+
+    // サイズ変更の割合を計算
+    let mut scale_factor = 1.0;
+    let mut new_img = img.clone();
+    let mut buffer = Vec::new();
+
+    while {
+        buffer.clear();
+        new_img.write_to(&mut Cursor::new(&mut buffer), ImageOutputFormat::Jpeg(80))?;
+        buffer.len() as u64 > max_size_bytes
+    } {
+        scale_factor *= 0.9;
+        let new_width = (width as f32 * scale_factor) as u32;
+        let new_height = (height as f32 * scale_factor) as u32;
+        new_img = img.resize(new_width, new_height, image::imageops::FilterType::Lanczos3);
+    }
+
+    Ok(Bytes::from(buffer))
+}
 
     // image : base64 encode
     async fn upload_image(&self, image: &Bytes) -> anyhow::Result<String> {
+        let resized_image = self.resize_and_compress_image(&image, 5 * 1024 * 1024).await?;
+        println!("in upload_image");
         let client = reqwest::Client::new();
        
         // let bearer_token = self.get_access_token().await.unwrap();
         let endpoint = "https://upload.twitter.com/1.1/media/upload.json".to_string();
 
         let header_auth = self.get_request_header("POST", &endpoint);
-        // println!("{}", header_auth);
+        println!("{}", header_auth);
 
+        println!("got request header");
 
         let mut headers = HeaderMap::new();
         headers.insert(AUTHORIZATION, header_auth.parse().unwrap());
@@ -283,7 +317,7 @@ impl Twitter {
         // let mut buffer:Vec<u8> = Vec::new();
         // file.read_to_end(&mut buffer).unwrap();
 
-        let part = multipart::Part::bytes(image.to_vec());
+        let part = multipart::Part::bytes(resized_image.to_vec());
 
         // let part = multipart::Part::bytes(buffer).file_name("image.png");
 
@@ -291,22 +325,29 @@ impl Twitter {
             .text("additional_owners", self.user_id.clone())
             .part("media", part);
 
-        let res = client.post(&endpoint)
-            // .bearer_auth(bearer_token)
+        let response = client.post(&endpoint)
             .headers(headers)
             .multipart(form)
             .send()
-            .await?.text().await?;
+            .await?;
 
         
-            
+
+        println!("made POST requst"); 
+        let mut image: Image;
+        if response.status().is_success() {
+            let res_text = response.text().await?;
+            println!("Response text: {}", res_text);
+
+            image = serde_json::from_str(&res_text)?;
+            return Ok(image.media_id_string);
+        } else {
+            println!("Request failed with status: {}", response.status());
+            return Err(anyhow!("error"));
+        }
+
         
 
-        println!("{}", res);
-        
-        let image: Image = serde_json::from_str(&res)?;
-
-        return Ok(image.media_id_string);
     }
 
     // async fn get_user_id(&self, screen_name: &str) -> String {
