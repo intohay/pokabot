@@ -304,7 +304,6 @@ impl Twitter {
         let endpoint = "https://upload.twitter.com/1.1/media/upload.json".to_string();
 
         let header_auth = self.get_request_header("POST", &endpoint);
-        println!("{}", header_auth);
 
         println!("got request header");
 

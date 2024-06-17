@@ -102,8 +102,7 @@ impl Scraper {
         let mut images: Vec<Bytes> = vec![];
         for element in doc.select(&image_sel) {
             let src = element.value().attr("src").unwrap();
-            
-            if !src.contains("https") {
+            if !src.contains("https") || !src.to_lowercase().ends_with(".jpg")  && !src.to_lowercase().ends_with(".jpeg") && !src.to_lowercase().ends_with(".png") {
                 continue;
             }
             
@@ -160,7 +159,7 @@ impl Scraper {
         let mut images: Vec<Bytes> = vec![];
         for element in doc.select(&image_sel) {
             if let Some(src) = element.value().attr("src") {
-                if !src.contains("https") {
+                if !src.contains("https") || !src.to_lowercase().ends_with(".jpg") && !src.to_lowercase().ends_with(".png") && !src.to_lowercase().ends_with(".jpeg") {
                     continue;
                 }
                 println!("{}", src);
