@@ -1,4 +1,5 @@
 use dotenv::dotenv;
+// use pokabot::schema::news::news_id;
 use std::env;
 use std::mem;
 pub mod scraper;
@@ -84,54 +85,47 @@ async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper
     Ok(())
 }
 
-async fn tweet_until_latest_news(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, connection: &mut SqliteConnection, member_info: &HashMap<String, Person>) {
+async fn tweet_until_latest_news(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, connection: &mut SqliteConnection, member_info: &HashMap<String, Person>) -> Result<()> {
 
-   
-    if let Ok(news_ids) = scraper.scrape_news_ids().await {
-        for news_id in news_ids.into_iter().rev() {
-            let is_tweeted = is_news_tweeted(&news_id, connection);
+    let news_ids = scraper.scrape_news_ids().await?;
 
-            match is_tweeted {
-                Ok(true) => continue,
-                Ok(false) | Err(_) => { 
-                    let result = tweet_news(&news_id, &twitter, &chatgpt, &scraper, connection, member_info).await;
-                    match result {
-                        Ok(_) => println!("Tweeted successfully!"),
-                        Err(error) => eprintln!("{:?}", error)
-                    }
-                }
+    for news_id in news_ids.into_iter().rev() {
+        match is_news_tweeted(&news_id, connection)? {
+            true => continue,
+            false => { 
+                tweet_news(&news_id, &twitter, &chatgpt, &scraper, connection, member_info).await?;
+                println!("Tweeted successfully!");
             }
-
         }
+
     }
+    
+
+    Ok(())
 
     
 
 }
+async fn tweet_until_latest_post(
+    twitter: &Twitter,
+    chatgpt: &ChatGPT,
+    scraper: &Scraper,
+    connection: &mut SqliteConnection,
+    member_info: &HashMap<String, Person>,
+) -> Result<()> {
+    let post_ids = scraper.scrape_post_ids().await?;
 
-async fn tweet_until_latest_post(twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper, connection: &mut SqliteConnection, member_info: &HashMap<String, Person>){
-
-
-    if let Ok(post_ids) = scraper.scrape_post_ids().await {
-        for post_id in post_ids.into_iter().rev() {
-
-            let is_tweeted = is_post_tweeted(post_id, connection);
-
-            match is_tweeted {
-                Ok(true) => continue,
-                Ok(false) | Err(_) => {
-                    let result = tweet_blog(post_id, &twitter, &chatgpt, &scraper, connection, member_info).await;
-                    match result {
-                        Ok(_) => println!("Tweeted successfully!"),
-                        Err(error) => eprintln!("{:?}", error)
-                    }
-                }
+    for post_id in post_ids.into_iter().rev() {
+        match is_post_tweeted(post_id, connection)? {
+            true => continue,
+            false => {
+                tweet_blog(post_id, &twitter, &chatgpt, &scraper, connection, member_info).await?;
+                println!("Tweeted successfully!");
             }
         }
     }
 
-    
-
+    Ok(())
 }
 
 
@@ -423,10 +417,9 @@ async fn main() -> Result<()> {
         Ok(_) => {
             // ロックが取得できた場合、プログラムを実行
             println!("Lock acquired, running program...");
-            tweet_until_latest_post(&twitter, &chatgpt, &scraper, connection, &member_info).await;
-            tweet_until_latest_news(&twitter, &chatgpt, &scraper, connection, &member_info).await;
+            tweet_until_latest_post(&twitter, &chatgpt, &scraper, connection, &member_info).await?;
+            tweet_until_latest_news(&twitter, &chatgpt, &scraper, connection, &member_info).await?;
            
-            
 
             // ロックを解除
             file.unlock()?;
