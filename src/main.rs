@@ -1,5 +1,5 @@
 use dotenv::dotenv;
-// use pokabot::schema::news::news_id;
+use pokabot::schema::news::news_id;
 use std::env;
 use std::mem;
 pub mod scraper;
@@ -41,9 +41,9 @@ struct Person {
 
 
 
-async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper,connection: &mut SqliteConnection, member_info: &HashMap<String, Person> ) -> Result<()> {
+async fn tweet_news(news_article_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper: &Scraper,connection: &mut SqliteConnection, member_info: &HashMap<String, Person> ) -> Result<()> {
 
-    let news = scraper.scrape_news(news_id).await?;
+    let news = scraper.scrape_news(news_article_id).await?;
     let now = Local::now();
     let now_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
@@ -79,7 +79,7 @@ async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper
         }
     }
 
-    save_news(news_id, news.posted_at(), connection);
+    save_news(news_article_id, news.posted_at(), connection);
 
 
     Ok(())
@@ -89,11 +89,11 @@ async fn tweet_until_latest_news(twitter: &Twitter, chatgpt: &ChatGPT, scraper: 
 
     let news_ids = scraper.scrape_news_ids().await?;
 
-    for news_id in news_ids.into_iter().rev() {
-        match is_news_tweeted(&news_id, connection)? {
+    for news_article_id in news_ids.into_iter().rev() {
+        match is_news_tweeted(&news_article_id, connection)? {
             true => continue,
             false => { 
-                tweet_news(&news_id, &twitter, &chatgpt, &scraper, connection, member_info).await?;
+                tweet_news(&news_article_id, &twitter, &chatgpt, &scraper, connection, member_info).await?;
                 println!("Tweeted successfully!");
             }
         }
@@ -320,13 +320,13 @@ fn save_blog(post_id: i32, name: &str, posted_at: &NaiveDateTime, connection: &m
    
 }
 
-fn save_news(news_id: &str, posted_at: &NaiveDateTime, connection: &mut SqliteConnection){
+fn save_news(news_article_id: &str, posted_at: &NaiveDateTime, connection: &mut SqliteConnection){
     use pokabot::schema::news;
 
-    if is_new_news(news_id, connection) {
+    if is_new_news(news_article_id, connection) {
         println!("new news");
         let new_news = NewNews {
-            news_id: news_id,
+            news_id: news_article_id,
             posted_at: posted_at.clone(), // 修正
             jp_tweeted: true,
             eng_tweeted: false,
