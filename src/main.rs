@@ -28,7 +28,7 @@ use std::collections::HashMap;
 use anyhow::{Context, Result};
 use log::{debug, info};
 use env_logger;
-
+use diesel::result::Error;
 
 #[derive(Debug, Deserialize)]
 struct Person {
@@ -47,7 +47,7 @@ async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper
     let now_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
     save_news(news_id, news.posted_at(), connection);
-    
+
     let prompt = {
         format!("以下は、日向坂46というアイドルグループに関するニュースです。
         ファンになったつもりで、ニュースの内容を要約し、カジュアルな日本語40字以内で短めにツイートしなさい。
@@ -272,20 +272,27 @@ fn is_new_news(news_id_str: &str, connection: &mut SqliteConnection) -> bool {
     }
 }
 
-fn is_post_tweeted(post_id: i32, connection: &mut SqliteConnection) -> Result<bool> {
+fn is_post_tweeted(post_id: i32, connection: &mut SqliteConnection) -> Result<bool, Error> {
     use pokabot::schema::blogs::dsl::*;
     use pokabot::models::Blog;
-    let blog = blogs.filter(id.eq(post_id)).first::<Blog>(connection)?;
+    
 
-    return Ok(blog.jp_tweeted);
+    match blogs.filter(id.eq(post_id)).first::<Blog>(connection) {
+        Ok(blog) => Ok(blog.jp_tweeted),
+        Err(Error::NotFound) => Ok(false),
+        Err(e) => Err(e),
+    }
 }
 
-fn is_news_tweeted(n_id: &str, connection: &mut SqliteConnection) -> Result<bool> {
+fn is_news_tweeted(n_id: &str, connection: &mut SqliteConnection) -> Result<bool, Error> {
     use pokabot::schema::news::dsl::*;
     use pokabot::models::News;
-    let n = news.filter(news_id.eq(n_id)).first::<News>(connection)?;
-
-    return Ok(n.jp_tweeted);
+   
+    match news.filter(news_id.eq(n_id)).first::<News>(connection){
+        Ok(news_post) => Ok(news_post.jp_tweeted),
+        Err(Error::NotFound) => Ok(false),
+        Err(e) => Err(e),
+    }
 
 }
 
