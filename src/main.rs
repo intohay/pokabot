@@ -1,6 +1,5 @@
 use dotenv::dotenv;
 use std::env;
-use std::mem;
 pub mod scraper;
 use crate::scraper::scraper::Scraper;
 use crate::twitter::Twitter;
@@ -10,25 +9,20 @@ mod twitter;
 mod chatgpt;
 mod instagram;
 pub mod helper;
-use std::fs;
 use serde::{Serialize, Deserialize};
-use std::fs::File;
-use std::io::Read;
-use bytes::Bytes;
 use diesel::prelude::*;
 use diesel::SqliteConnection;
+use diesel::result::Error;
 use pokabot::models::{NewBlog, NewNews};
 use fs2::FileExt;
 use std::fs::OpenOptions;
 use std::path::Path;
-use std::io::{self, ErrorKind};
+use std::io::ErrorKind;
 extern crate chrono;
 use chrono::Local;
 use std::collections::HashMap;
-use anyhow::{Context, Result};
-use log::{debug, info};
-use env_logger;
-use diesel::result::Error;
+use anyhow::Result;
+
 
 #[derive(Debug, Deserialize)]
 struct Person {
@@ -167,7 +161,7 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
     
     let default_hashtag = "#日向坂46";
     let person = member_info.get(name);
-    let mut hashtag = "";
+    let hashtag: &str;
     let mut nickname = "";
     if let Some(person) = person {
         hashtag = &person.hashtag;
@@ -376,7 +370,7 @@ fn generate_hashmap(people: Vec<Person>) -> HashMap<String, Person> {
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
-    env_logger::init();
+    
 
     let gpt_api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set.");
     let consummer_key = env::var("CK").expect("CK must be set.");

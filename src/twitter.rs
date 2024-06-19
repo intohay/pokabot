@@ -13,11 +13,12 @@ use serde::{Serialize, Deserialize};
 use serde_json::json;
 use bytes::Bytes;
 use tokio::time;
-use reqwest::header::HeaderValue;
-use log::{debug, info};
 use anyhow::{Result, anyhow};
-use image::{DynamicImage, ImageOutputFormat, GenericImageView};
+use image::{ImageOutputFormat, GenericImageView};
 use std::io::Cursor;
+
+
+
 #[derive(Serialize, Deserialize, Debug)]
 struct Token {
     access_token: String,
@@ -147,26 +148,26 @@ impl Twitter {
         base64::encode(&hash)
     }
 
-    pub async fn post_hello(&self) -> anyhow::Result<()> {
-        let client = reqwest::Client::new();
-        let header_auth = self.get_request_header("POST", "https://api.twitter.com/2/tweets");
+    // pub async fn post_hello(&self) -> anyhow::Result<()> {
+    //     let client = reqwest::Client::new();
+    //     let header_auth = self.get_request_header("POST", "https://api.twitter.com/2/tweets");
 
 
-        let post_data = json!({ "text" : "hello, world" });
+    //     let post_data = json!({ "text" : "hello, world" });
 
-        let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, header_auth.parse().unwrap());
+    //     let mut headers = HeaderMap::new();
+    //     headers.insert(AUTHORIZATION, header_auth.parse().unwrap());
         
-        let res = client.post("https://api.twitter.com/2/tweets")
-            .headers(headers)
-            .header("Content-Type","application/json")
-            .json(&post_data)
-            .send()
-            .await?.text().await?;
+    //     let res = client.post("https://api.twitter.com/2/tweets")
+    //         .headers(headers)
+    //         .header("Content-Type","application/json")
+    //         .json(&post_data)
+    //         .send()
+    //         .await?.text().await?;
 
-        println!("{}", res);
-        Ok(())
-    }
+    //     println!("{}", res);
+    //     Ok(())
+    // }
     
     async fn post_tweet(&self, post_data: &Value) -> anyhow::Result<TweetResponse> {
         let client = reqwest::Client::new();
@@ -333,7 +334,8 @@ impl Twitter {
         
 
         println!("made POST requst"); 
-        let mut image: Image;
+        let image: Image;
+        
         if response.status().is_success() {
             let res_text = response.text().await?;
             println!("Response text: {}", res_text);
