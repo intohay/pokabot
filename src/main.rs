@@ -40,7 +40,7 @@ async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper
     let now = Local::now();
     let now_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
-    save_news(news_id, news.posted_at(), connection);
+    
 
     let prompt = {
         format!("以下は、日向坂46というアイドルグループに関するニュースです。
@@ -72,6 +72,8 @@ async fn tweet_news(news_id: &str ,twitter: &Twitter, chatgpt: &ChatGPT, scraper
             break;
         }
     }
+
+    save_news(news_id, news.posted_at(), connection);
 
     
 
@@ -153,7 +155,7 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
     let body = truncate_string(blog.body(), max_length);
 
     let posted_at = blog.posted_at();
-    save_blog(post_id, name, posted_at, connection);
+    
 
     let now = Local::now();
     let now_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
@@ -216,7 +218,7 @@ async fn tweet_blog(post_id: i32 ,twitter: &Twitter, chatgpt: &ChatGPT, scraper:
 
     // save_blog(post_id, name, posted_at, connection);
 
-    
+    save_blog(post_id, name, posted_at, connection);
 
     Ok(())
     
@@ -420,7 +422,9 @@ async fn main() -> Result<()> {
             println!("Lock acquired, running program...");
             tweet_until_latest_post(&twitter, &chatgpt, &scraper, connection, &member_info).await?;
             tweet_until_latest_news(&twitter, &chatgpt, &scraper, connection, &member_info).await?;
-           
+            
+            //成功しない限り、ロックを解除しない
+            //失敗したときに、その失敗を繰り返さないようにするため
 
             // ロックを解除
             file.unlock()?;
