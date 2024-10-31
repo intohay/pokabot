@@ -100,21 +100,21 @@ impl Scraper {
         let body = doc.select(&body_sel).next().unwrap().text().collect::<String>();
 
         let mut images: Vec<Bytes> = vec![];
-        for element in doc.select(&image_sel) {
-            let src = element.value().attr("src").unwrap();
-            if !src.contains("https") || !src.to_lowercase().ends_with(".jpg")  && !src.to_lowercase().ends_with(".jpeg") && !src.to_lowercase().ends_with(".png") {
-                continue;
-            }
+        // for element in doc.select(&image_sel) {
+        //     let src = element.value().attr("src").unwrap();
+        //     if !src.contains("https") || !src.to_lowercase().ends_with(".jpg")  && !src.to_lowercase().ends_with(".jpeg") && !src.to_lowercase().ends_with(".png") {
+        //         continue;
+        //     }
             
-            println!("{}", src);
+        //     println!("{}", src);
            
-            let bytes = reqwest::get(src).await?
-                                    .bytes().await?;
+        //     let bytes = reqwest::get(src).await?
+        //                             .bytes().await?;
            
-            images.push(bytes);
+        //     images.push(bytes);
 
-            time::sleep(time::Duration::from_secs(1)).await;
-        }
+        //     time::sleep(time::Duration::from_secs(1)).await;
+        // }
         Ok(News {
             url: url, 
             body: format!("{}\n {}", title, body),
